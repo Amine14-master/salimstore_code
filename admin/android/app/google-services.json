@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "550016293282",
+    "firebase_url": "https://salimstore-f1830-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "salimstore-f1830",
+    "storage_bucket": "salimstore-f1830.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:550016293282:android:dc14aeaecb0fde28c63afb",
+        "android_client_info": {
+          "package_name": "com.example.admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1UrT3a4Vc9UO-zVaS3GS3-uvrjVuWTRs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:550016293282:android:c977812c318dcb2cc63afb",
+        "android_client_info": {
+          "package_name": "com.example.client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1UrT3a4Vc9UO-zVaS3GS3-uvrjVuWTRs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
