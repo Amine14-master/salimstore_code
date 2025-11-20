@@ -959,17 +959,4 @@ class RealtimeDatabaseService {
       return false;
     }
   }
-
-  // Reset all categories data
-  static Future<void> resetCategoriesData() async {
-    try {
-      print('RealtimeDatabaseService: Resetting categories data...');
-      await _categoriesRef.remove();
-      print(
-        'RealtimeDatabaseService: Categories data cleared - ready for manual creation',
-      );
-    } catch (e) {
-      print('RealtimeDatabaseService: Error resetting categories data: $e');
-    }
-  }
 }
