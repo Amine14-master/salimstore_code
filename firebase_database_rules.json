@@ -1,0 +1,16 @@
+{
+    "rules": {
+        ".read": true,
+        ".write": true,
+        "promotions": {
+            ".indexOn": [
+                "isActive"
+            ]
+        },
+        "products": {
+            ".indexOn": [
+                "categoryId"
+            ]
+        }
+    }
+}

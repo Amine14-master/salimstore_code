@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>CFBundleDevelopmentRegion</key>
+		<string>$(DEVELOPMENT_LANGUAGE)</string>
+		<key>CFBundleDisplayName</key>
+		<string>LivriYES</string>
+		<key>CFBundleExecutable</key>
+		<string>$(EXECUTABLE_NAME)</string>
+		<key>CFBundleIdentifier</key>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+		<key>CFBundleInfoDictionaryVersion</key>
+		<string>6.0</string>
+		<key>CFBundleName</key>
+		<string>LivriYES</string>
+		<key>CFBundlePackageType</key>
+		<string>APPL</string>
+		<key>CFBundleShortVersionString</key>
+		<string>$(FLUTTER_BUILD_NAME)</string>
+		<key>CFBundleSignature</key>
+		<string>????</string>
+		<key>CFBundleVersion</key>
+		<string>$(FLUTTER_BUILD_NUMBER)</string>
+		<key>LSRequiresIPhoneOS</key>
+		<true/>
+		<key>UILaunchStoryboardName</key>
+		<string>LaunchScreen</string>
+		<key>UIMainStoryboardFile</key>
+		<string>Main</string>
+		<key>UISupportedInterfaceOrientations</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
+		</array>
+		<key>UISupportedInterfaceOrientations~ipad</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationPortraitUpsideDown</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
+		</array>
+		<key>CADisableMinimumFrameDurationOnPhone</key>
+		<true/>
+		<key>UIApplicationSupportsIndirectInputEvents</key>
+		<true/>
+		<key>NSCameraUsageDescription</key>
+		<string>Nous avons besoin d'accéder à votre caméra pour prendre une nouvelle photo de profil.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Nous avons besoin d'accéder à votre microphone pour enregistrer des vidéos.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Nous avons besoin d'accéder à votre galerie afin de sélectionner une photo de profil.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>L'application peut enregistrer votre photo de profil mise à jour dans votre bibliothèque.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>Cette application a besoin d'accéder à votre position pour vous permettre de sélectionner votre adresse de livraison sur la carte.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>Cette application a besoin d'accéder à votre position pour vous permettre de sélectionner votre adresse de livraison sur la carte.</string>
+		<key>UIStatusBarHidden</key>
+		<false/>
+	</dict>
+</plist>
