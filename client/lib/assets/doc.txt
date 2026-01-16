@@ -1,0 +1,184 @@
+ 
+
+1. Conditions Générales d'Utilisation et de Vente (CGUV) 
+
+Date d'entrée en vigueur : 01/01/2026 
+
+Article 1 : Mentions Légales 
+
+L'application LivriYes (ci-après "l'Application") est éditée et exploitée par la société : 
+
+Dénomination sociale : LIVRIYES LLC 
+
+Forme juridique : Limited Liability Company (LLC) 
+
+Numéro de document : 202532904028 
+
+Siège social : 2057 HARWITCH RD, UPPER ARLINGTON, OH 43221, USA. 
+
+Article 2 : Objet 
+
+Les présentes conditions régissent la vente directe de produits et les services de livraison proposés par LIVRIYES LLC via l'Application. Contrairement à une place de marché, LIVRIYES LLC est le vendeur direct des produits présentés ; il n'y a pas d'intermédiaire tiers (commerçants). 
+
+Article 3 : Produits et Disponibilité 
+
+Offre : Les produits régis par les présentes sont ceux qui figurent dans l'Application au jour de la consultation par le client. 
+
+Gestion des stocks : Les produits sont gérés directement par nos soins. En cas d'indisponibilité d'un produit après passation de la commande, la politique de remplacement (voir Politique de Remplacement) s'applique immédiatement. Aucune annulation sèche n'est effectuée. 
+
+Article 4 : Commande et Paiement 
+
+Validation : La commande est ferme et définitive dès la validation du paiement ou la confirmation de la commande (si paiement à la livraison). 
+
+Modification : Une fois la commande préparée par nos équipes, aucune modification n'est acceptée par le client. 
+
+Prix : Les prix sont indiqués en devise locale et incluent les taxes applicables. Les frais de livraison sont ajoutés au total avant validation. 
+
+Article 5 : Livraison 
+
+Responsabilité : LIVRIYES LLC assure la livraison à l'adresse indiquée. Le client doit s'assurer de l'exactitude des coordonnées. 
+
+Absence : En cas d'absence du client lors de la livraison, la commande sera retournée à l'entrepôt. Des frais de relivraison pourront être appliqués. 
+
+Article 6 : Droit Applicable 
+
+Les présentes conditions sont régies par les lois de l'État de l'Ohio (USA), lieu d'enregistrement de la société, sans préjudice des règles impératives de protection des consommateurs du pays de livraison.  
+
+ 
+Contact :  
+
+Email : contact@livriyes.app  
+
+Téléphone : +213778029965  
+
+Forme 
+
+2. Politique de Remplacement et de Gestion des Commandes 
+
+Date d'entrée en vigueur : 01/01/2026 
+
+IMPORTANT : La société LIVRIYES LLC applique une politique de non-remboursement monétaire. En validant une commande sur l'Application, le client accepte les conditions suivantes concernant les indisponibilités ou les problèmes de commande. 
+
+1. Absence de Remboursement 
+
+Aucun remboursement (en espèces, virement ou retour carte bancaire) n'est effectué, que ce soit pour une annulation client, une erreur de commande ou une indisponibilité produit. Toutes les ventes sont finales. 
+
+2. Gestion des produits indisponibles (Rupture de stock) 
+
+Si un produit commandé se révèle indisponible au moment de la préparation, deux solutions sont appliquées, au choix de LIVRIYES LLC ou en accord avec le client : 
+
+Option A - Remplacement : Le produit manquant est remplacé par un article de qualité et de prix équivalents ou supérieurs (sans surcoût pour le client). 
+
+Option B - Enregistrement différé (Backorder) : La ligne de commande concernant l'article manquant reste "ouverte" et enregistrée dans notre système. L'article sera livré prioritairement dès son retour en stock (réapprovisionnement), sans frais de livraison supplémentaires pour cet envoi spécifique. 
+
+3. Produits défectueux ou Erreurs de préparation 
+
+En cas de réception d'un produit endommagé ou ne correspondant pas à la commande : 
+
+Le client doit signaler le problème via l'Application sous 24h avec photo à l'appui. 
+
+Après validation par notre support, LIVRIYES LLC procédera à : 
+
+L'échange immédiat du produit lors de la prochaine tournée de livraison. 
+
+OU l'enregistrement d'un crédit (avoir) sur le compte client, utilisable pour une future commande. 
+
+4. Annulation de commande 
+
+Toute commande validée ne peut être annulée par le client. Si le client refuse la livraison, les produits restent la propriété de LIVRIYES LLC et le montant de la commande reste dû ou conservé par la société. 
+ 
+Contact :  
+
+Email : contact@livriyes.app  
+
+Téléphone : +213778029965  
+
+Forme 
+
+Politique de Confidentialité 
+
+Date d'entrée en vigueur : 01/01/2026 
+
+1. Responsable du Traitement 
+
+Les données personnelles collectées via l'application LivriYes sont traitées par : 
+
+Société : LIVRIYES LLC 
+
+Siège social : 2057 HARWITCH RD, UPPER ARLINGTON, OH 43221, USA. 
+
+Contact : contact@livriyes.app 
+
+2. Données Collectées 
+
+Nous collectons uniquement les données nécessaires au bon fonctionnement du service de vente et de livraison : 
+
+Données d'identité : Nom, prénom, numéro de téléphone (obligatoire pour la livraison). 
+
+Données de livraison : Adresse postale complète, étage, code d'accès, instructions spécifiques. 
+
+Données de géolocalisation : Position GPS exacte lors de la sélection de l'adresse de livraison pour faciliter le trajet des livreurs. 
+
+Données de transaction : Historique des commandes, détails des produits achetés, montant total. 
+
+Données techniques : Adresse IP, type d'appareil, version de l'OS (pour la maintenance et la sécurité). 
+
+Données de paiement : Nous ne stockons pas les données bancaires complètes. Les paiements sont sécurisés et traités par nos prestataires de paiement certifiés. Nous conservons uniquement un jeton d'identification de transaction. 
+
+3. Finalités du Traitement 
+
+Vos données sont utilisées pour : 
+
+Exécuter le contrat : Gestion des commandes, préparation des produits par nos équipes, et livraison à votre domicile. 
+
+Service Client : Gestion des réclamations, échanges de produits ou mise en attente (backorder). 
+
+Amélioration du service : Analyse anonymisée des habitudes de commande pour optimiser nos stocks (gestion directe). 
+
+Notifications : Envoi d'étapes de commande (SMS, Push, Email). 
+
+4. Partage des Données 
+
+Vos données ne sont jamais vendues à des tiers. Elles sont partagées uniquement avec : 
+
+Le personnel de LIVRIYES LLC : Pour la préparation des commandes. 
+
+Les livreurs : Nom, téléphone et adresse sont transmis au livreur assigné uniquement le temps de la mission de livraison. 
+
+Prestataires techniques : Hébergeur de données et processeur de paiement (ex: Stripe, PayPal), soumis à des obligations strictes de confidentialité. 
+
+Autorités légales : Si requis par la loi de l'État de l'Ohio ou du pays de livraison. 
+
+5. Autorisations Spécifiques (Mobile) 
+
+L'application peut demander l'accès à certaines fonctionnalités de votre téléphone : 
+
+Position (GPS) : Pour localiser précisément l'adresse de livraison. 
+
+Notifications : Pour vous informer de l'arrivée du livreur. 
+
+Stockage/Caméra : Si vous devez envoyer une photo pour signaler un produit endommagé. 
+
+6. Sécurité des Données 
+
+Nous mettons en œuvre des mesures de sécurité techniques (chiffrement SSL/HTTPS) et organisationnelles pour protéger vos données contre l'accès non autorisé, la perte ou l'altération. Les serveurs sont sécurisés selon les standards internationaux. 
+
+7. Vos Droits 
+
+Conformément aux réglementations en vigueur, vous disposez des droits suivants : 
+
+Accès et Rectification : Vous pouvez consulter et modifier vos informations personnelles directement dans l'application. 
+
+Suppression : Vous pouvez demander la suppression de votre compte et de vos données associées en contactant le support, sous réserve des obligations légales de conservation (ex: facturation). 
+
+8. Modifications 
+
+LIVRIYES LLC se réserve le droit de modifier cette politique. Les utilisateurs seront informés des mises à jour majeures via l'application. L'utilisation continue du service après le 01/01/2026 vaut acceptation des nouvelles conditions 
+
+9. Contact :  
+
+Email : contact@livriyes.app  
+
+Téléphone : +213778029965  
+
+ 
