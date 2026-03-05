@@ -53,7 +53,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyD1UrT3a4Vc9UO-zVaS3GS3-uvrjVuWTRs',
-    appId: '1:550016293282:android:dc14aeaecb0fde28c63afb',
+    appId: '1:550016293282:android:3af432aef102dc3bc63afb',
     messagingSenderId: '550016293282',
     projectId: 'salimstore-f1830',
     databaseURL: 'https://salimstore-f1830-default-rtdb.europe-west1.firebasedatabase.app',
@@ -62,12 +62,12 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDgCW4aUzrF3ALilXOqNIaDl8bjOqmx3Ig',
-    appId: '1:550016293282:ios:6f8926f9d4ba622fc63afb',
+    appId: '1:550016293282:ios:261b1474c595079ac63afb',
     messagingSenderId: '550016293282',
     projectId: 'salimstore-f1830',
     databaseURL: 'https://salimstore-f1830-default-rtdb.europe-west1.firebasedatabase.app',
     storageBucket: 'salimstore-f1830.firebasestorage.app',
-    iosBundleId: 'com.example.admin',
+    iosBundleId: 'com.livriyes.admin',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -77,7 +77,7 @@ class DefaultFirebaseOptions {
     projectId: 'salimstore-f1830',
     databaseURL: 'https://salimstore-f1830-default-rtdb.europe-west1.firebasedatabase.app',
     storageBucket: 'salimstore-f1830.firebasestorage.app',
-    iosBundleId: 'com.example.admin',
+    iosBundleId: 'com.livriyes.admin',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
@@ -90,4 +90,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'salimstore-f1830.firebasestorage.app',
     measurementId: 'G-D9ENYVLQCW',
   );
+
 }

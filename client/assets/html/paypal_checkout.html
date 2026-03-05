@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Paiement Sécurisé - SalimStore</title>
     <script
-        src="https://www.paypal.com/sdk/js?client-id=AQum48Rruw_SgjFTtzH_m9wIF5MtnaSZVtKPBfiuRoh1xDBMiFcBM6cdHwPj42-m8DgaeVGTaNmtS3p9&currency=EUR&components=buttons"
+        src="https://www.paypal.com/sdk/js?client-id=AfRoRKbFUbMU9vcef2a_vLM8W_SXBhKceLUilp--DMiqTLzowEgiN7wera_chuJGSymqKbwLUc0YCXds&currency=EUR&components=buttons"
         data-sdk-integration-source="developer-studio"></script>
     <style>
         * {
@@ -17,48 +17,38 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: #f8f9fa;
             min-height: 100vh;
-            padding: 20px;
+            padding: 10px;
         }
 
         .container {
             max-width: 500px;
             margin: 0 auto;
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
             overflow: hidden;
+            border: 1px solid #eee;
         }
 
+        /* Redundant header removed - will use Flutter header instead */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px 20px;
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-
-        .header p {
-            font-size: 14px;
-            opacity: 0.9;
+            display: none;
         }
 
         .content {
-            padding: 30px 20px;
+            padding: 24px 16px;
         }
 
         .order-summary {
-            background: #f8f9fa;
+            background: #f8fff9;
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 24px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #10AA2E;
+            border: 1px solid #e0f2e1;
+            border-left: 4px solid #10AA2E;
         }
 
         .summary-item {
@@ -70,7 +60,7 @@
         }
 
         .summary-item:not(:last-child) {
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid #f0f0f0;
             margin-bottom: 8px;
         }
 
@@ -86,11 +76,11 @@
 
         .summary-total {
             font-size: 18px;
-            color: #667eea;
+            color: #10AA2E;
             font-weight: 700;
             margin-top: 12px;
             padding-top: 12px;
-            border-top: 2px solid #e0e0e0;
+            border-top: 2px solid #f0f0f0;
         }
 
         .payment-methods {
@@ -109,11 +99,11 @@
         .method-title::before {
             content: '';
             display: inline-block;
-            width: 4px;
-            height: 4px;
-            background: #667eea;
+            width: 8px;
+            height: 8px;
+            background: #10AA2E;
             border-radius: 50%;
-            margin-right: 8px;
+            margin-right: 10px;
         }
 
         .paypal-button-container {

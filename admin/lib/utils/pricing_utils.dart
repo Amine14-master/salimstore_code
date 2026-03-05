@@ -4,29 +4,35 @@ class PricingUtils {
   // - litre products: price per 1 litre
   // - unit products: price per 1 unit
 
-  static double calculatePriceForUnit(double basePrice, String unit) {
-    switch (unit.toLowerCase()) {
-      case '100g':
-        return basePrice * 0.1; // 100g = 0.1kg
-      case '250g':
-        return basePrice * 0.25; // 250g = 0.25kg
-      case '500g':
-        return basePrice * 0.5; // 500g = 0.5kg
-      case '1kg':
-      case 'kg':
-        return basePrice; // 1kg = base price
-      case 'unité':
-      case 'unit':
-      case 'pièce':
-      case 'piece':
-        return basePrice; // 1 unit = base price
-      case 'litre':
-      case 'l':
-        return basePrice; // 1 litre = base price
-      default:
-        // For any other unit, assume it's the base unit
-        return basePrice;
+  static double calculatePriceForUnit(
+    double basePrice,
+    String targetUnit, [
+    String priceUnit = '1kg',
+  ]) {
+    // If they are exactly the same, return base price
+    if (targetUnit.toLowerCase() == priceUnit.toLowerCase()) return basePrice;
+
+    // Handle units with weight (g, kg)
+    double targetWeight = _getWeight(targetUnit);
+    double baseWeight = _getWeight(priceUnit);
+
+    // If both have weight, return ratio
+    if (targetWeight > 0 && baseWeight > 0) {
+      return basePrice * (targetWeight / baseWeight);
     }
+
+    // Default to base price if units are incompatible or have no weight (e.g., 'unité')
+    return basePrice;
+  }
+
+  static double _getWeight(String unit) {
+    unit = unit.toLowerCase();
+    if (unit == '100g') return 100.0;
+    if (unit == '250g') return 250.0;
+    if (unit == '500g') return 500.0;
+    if (unit == '1000g' || unit == '1kg' || unit == 'kg') return 1000.0;
+    if (unit == 'litre' || unit == 'l') return 1000.0;
+    return 0.0; // No measurable weight
   }
 
   static String getBaseUnitForCategory(String categoryName) {
@@ -59,17 +65,28 @@ class PricingUtils {
     return '${price.toString().replaceAll('.', ',')} € / $unit';
   }
 
-  static String getPricingHint(String categoryName) {
-    final baseUnit = getBaseUnitForCategory(categoryName);
-    switch (baseUnit) {
+  static String getPricingHint(String categoryName, [String? unit]) {
+    final baseUnit = unit ?? getBaseUnitForCategory(categoryName);
+    switch (baseUnit.toLowerCase()) {
       case 'kg':
+      case '1kg':
         return 'Prix par kilogramme. Ex: 100€ = 100€/kg (donc 10€ pour 100g)';
+      case '500g':
+        return 'Prix pour 500 grammes. Ex: 50€ = 50€ pour 500g (donc 100€/kg)';
+      case '250g':
+        return 'Prix pour 250 grammes. Ex: 25€ = 25€ pour 250g (donc 100€/kg)';
+      case '100g':
+        return 'Prix pour 100 grammes. Ex: 10€ = 10€ pour 100g (donc 100€/kg)';
       case 'litre':
+      case 'l':
         return 'Prix par litre. Ex: 5€ = 5€/L';
       case 'unité':
+      case 'unit':
+      case 'pièce':
+      case 'piece':
         return 'Prix par unité. Ex: 10€ = 10€ par pièce';
       default:
-        return 'Prix par unité de base';
+        return 'Prix par $baseUnit';
     }
   }
 }

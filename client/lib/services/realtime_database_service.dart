@@ -8,6 +8,7 @@ class RealtimeDatabaseService {
   static DatabaseReference get _categoriesRef => _database.ref('categories');
   static DatabaseReference get _productsRef => _database.ref('products');
   static DatabaseReference get _promotionsRef => _database.ref('promotions');
+  static DatabaseReference get _settingsRef => _database.ref('settings');
 
   static Map<String, dynamic> _normalizeSnapshotMap(dynamic value) {
     if (value == null) return {};
@@ -59,14 +60,15 @@ class RealtimeDatabaseService {
                 'createdAt':
                     categoryData['createdAt'] ??
                     DateTime.now().millisecondsSinceEpoch,
+                'order': categoryData['order'] ?? 0,
               }),
             );
           } catch (e) {
             print('Error parsing category: $e');
           }
         }
-        // Sort by creation date (newest first)
-        categories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        // Sort by order ascending
+        categories.sort((a, b) => a.order.compareTo(b.order));
         print('Client: Loaded ${categories.length} categories');
         return categories;
       }
@@ -88,7 +90,7 @@ class RealtimeDatabaseService {
             'id': entry.key.toString(),
             ...Map<String, dynamic>.from(entry.value as Map),
           });
-        }).toList();
+        }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
       return [];
     } catch (e) {
@@ -111,7 +113,7 @@ class RealtimeDatabaseService {
             'id': entry.key.toString(),
             ...Map<String, dynamic>.from(entry.value as Map),
           });
-        }).toList();
+        }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
       return [];
     } catch (e) {
@@ -128,44 +130,36 @@ class RealtimeDatabaseService {
 
   static Future<List<Map<String, dynamic>>> getPromotions() async {
     try {
-      // Try with index first
-      try {
-        final snapshot = await _promotionsRef
-            .orderByChild('isActive')
-            .equalTo(true)
-            .get();
-        if (snapshot.exists) {
-          final Map<dynamic, dynamic> data =
-              snapshot.value as Map<dynamic, dynamic>;
-          return data.entries
-              .where((entry) => entry.value != null)
-              .map((entry) {
-                final promoData = Map<String, dynamic>.from(entry.value as Map);
-                return {'id': entry.key.toString(), ...promoData};
-              })
-              .where((promo) => promo['isActive'] == true)
-              .toList();
-        }
-      } catch (e) {
-        print('Index query failed, using fallback: $e');
-        // Fallback: Get all promotions and filter client-side
-        final snapshot = await _promotionsRef.get();
-        if (snapshot.exists) {
-          final Map<dynamic, dynamic> data =
-              snapshot.value as Map<dynamic, dynamic>;
-          return data.entries
-              .where((entry) => entry.value != null)
-              .map((entry) {
-                final promoData = Map<String, dynamic>.from(entry.value as Map);
-                return {'id': entry.key.toString(), ...promoData};
-              })
-              .where((promo) => promo['isActive'] == true)
-              .toList();
-        }
+      print('RealtimeDatabaseService(Client): Fetching active promotions...');
+      final snapshot = await _promotionsRef.get();
+
+      if (!snapshot.exists) {
+        print('RealtimeDatabaseService(Client): No promotions table found');
+        return [];
       }
-      return [];
+
+      final Map<dynamic, dynamic> data =
+          snapshot.value as Map<dynamic, dynamic>;
+
+      final activePromotions = data.entries
+          .where((entry) => entry.value != null)
+          .map((entry) {
+            final promoData = Map<String, dynamic>.from(entry.value as Map);
+            return {'id': entry.key.toString(), ...promoData};
+          })
+          .where((promo) {
+            // Be resilient: default to active if null to avoid disappearing items
+            final bool isActive = promo['isActive'] ?? true;
+            return isActive == true;
+          })
+          .toList();
+
+      print(
+        'RealtimeDatabaseService(Client): Found ${activePromotions.length} active promotions',
+      );
+      return activePromotions;
     } catch (e) {
-      print('Error getting promotions: $e');
+      print('RealtimeDatabaseService(Client): Error getting promotions: $e');
       return [];
     }
   }
@@ -195,13 +189,14 @@ class RealtimeDatabaseService {
                 'createdAt':
                     categoryData['createdAt'] ??
                     DateTime.now().millisecondsSinceEpoch,
+                'order': categoryData['order'] ?? 0,
               }),
             );
           } catch (e) {
             print('Error parsing category: $e');
           }
         }
-        categories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        categories.sort((a, b) => a.order.compareTo(b.order));
         return categories;
       }
       return [];
@@ -218,7 +213,7 @@ class RealtimeDatabaseService {
             'id': entry.key.toString(),
             ...Map<String, dynamic>.from(entry.value as Map),
           });
-        }).toList();
+        }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
       return [];
     });
@@ -244,7 +239,7 @@ class RealtimeDatabaseService {
                 'id': entry.key.toString(),
                 ...Map<String, dynamic>.from(entry.value as Map),
               });
-            }).toList();
+            }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           }
           return [];
         });
@@ -351,7 +346,7 @@ class RealtimeDatabaseService {
             'id': entry.key.toString(),
             ...Map<String, dynamic>.from(entry.value as Map),
           });
-        }).toList();
+        }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
       return [];
     } catch (e) {
@@ -387,9 +382,31 @@ class RealtimeDatabaseService {
                 'id': entry.key.toString(),
                 ...Map<String, dynamic>.from(entry.value as Map),
               });
-            }).toList();
+            }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           }
           return [];
         });
+  }
+
+  static Future<Map<String, dynamic>> getDeliveryPrices() async {
+    try {
+      final snapshot = await _settingsRef.child('deliveryPrices').get();
+      if (snapshot.exists) {
+        return Map<String, dynamic>.from(snapshot.value as Map);
+      }
+      return {'bejaiaCityFee': 3.49, 'otherWilayaFee': 8.99};
+    } catch (e) {
+      print('Error getting delivery prices: $e');
+      return {'bejaiaCityFee': 3.49, 'otherWilayaFee': 8.99};
+    }
+  }
+
+  static Stream<Map<String, dynamic>> deliveryPricesStream() {
+    return _settingsRef.child('deliveryPrices').onValue.map((event) {
+      if (event.snapshot.exists) {
+        return Map<String, dynamic>.from(event.snapshot.value as Map);
+      }
+      return {'bejaiaCityFee': 3.49, 'otherWilayaFee': 8.99};
+    });
   }
 }

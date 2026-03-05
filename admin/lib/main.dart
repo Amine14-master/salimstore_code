@@ -28,7 +28,7 @@ class AdminApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Salim Store Admin',
+      title: 'Livriyes Admin',
       theme: AppTheme.theme,
       debugShowCheckedModeBanner: false,
       home: const AuthWrapper(),
@@ -61,3 +61,4 @@ class AuthWrapper extends StatelessWidget {
     );
   }
 }
+

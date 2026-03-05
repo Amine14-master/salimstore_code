@@ -3,6 +3,7 @@ class Product {
   final String name;
   final String description;
   final double price;
+  final String priceUnit; // Added field
   final String imageUrl;
   final double rating;
   final int reviewCount;
@@ -20,6 +21,7 @@ class Product {
     required this.name,
     required this.description,
     required this.price,
+    this.priceUnit = '1kg', // Added with default
     required this.imageUrl,
     required this.rating,
     required this.reviewCount,
@@ -61,6 +63,7 @@ class Product {
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       price: (json['price'] ?? 0).toDouble(),
+      priceUnit: json['priceUnit'] ?? '1kg',
       imageUrl: imageUrl,
       rating: (json['rating'] ?? 0.0).toDouble(),
       reviewCount: json['reviewCount'] ?? 0,
@@ -87,6 +90,7 @@ class Product {
       'name': name,
       'description': description,
       'price': price,
+      'priceUnit': priceUnit,
       'imageUrl': imageUrl,
       'rating': rating,
       'reviewCount': reviewCount,
@@ -111,6 +115,7 @@ class Category {
   final String? iconUrl;
   final List<String> subCategoryIds;
   final DateTime createdAt;
+  final int order;
 
   Category({
     required this.id,
@@ -121,6 +126,7 @@ class Category {
     this.iconUrl,
     required this.subCategoryIds,
     required this.createdAt,
+    this.order = 0,
   });
 
   factory Category.fromJson(Map<String, dynamic> json) {
@@ -160,6 +166,7 @@ class Category {
       iconUrl: json['iconUrl']?.toString(),
       subCategoryIds: subCategoryIdsList,
       createdAt: _parseDateTime(json['createdAt']),
+      order: json['order'] ?? 0,
     );
   }
 
@@ -173,6 +180,7 @@ class Category {
       'iconUrl': iconUrl,
       'subCategoryIds': subCategoryIds,
       'createdAt': createdAt.toIso8601String(),
+      'order': order,
     };
   }
 }
@@ -212,15 +220,25 @@ class SubCategory {
       return DateTime.now();
     }
 
+    // Handle productIds - could be a list or a map
+    List<String> productIdsList = [];
+    if (json['productIds'] != null) {
+      if (json['productIds'] is List) {
+        productIdsList = List<String>.from(json['productIds']);
+      } else if (json['productIds'] is Map) {
+        // If it's a map, extract values
+        final map = json['productIds'] as Map;
+        productIdsList = map.values.map((e) => e.toString()).toList();
+      }
+    }
+
     return SubCategory(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       categoryId: json['categoryId']?.toString() ?? '',
       imageUrl: json['imageUrl']?.toString(),
-      productIds: json['productIds'] != null
-          ? List<String>.from(json['productIds'])
-          : [],
+      productIds: productIdsList,
       createdAt: _parseDateTime(json['createdAt']),
     );
   }

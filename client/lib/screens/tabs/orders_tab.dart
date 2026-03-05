@@ -550,6 +550,11 @@ class OrdersTabState extends State<OrdersTab>
     return '$day/$month/$year · $hour:$minute';
   }
 
+  String _formatCurrency(double value) {
+    if (value % 1 == 0) return '${value.toInt()} €';
+    return '${value.toStringAsFixed(2)} €';
+  }
+
   List<Map<String, dynamic>> _extractOrderItems(Map<String, dynamic> order) {
     final rawItems = order['items'];
     if (rawItems is List) {
@@ -1163,7 +1168,7 @@ class OrdersTabState extends State<OrdersTab>
                         ),
                       ),
                       Text(
-                        '${total.toString()} €',
+                        _formatCurrency(total),
                         style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(
                               color: AppTheme.primaryColor,
@@ -1266,7 +1271,7 @@ class OrdersTabState extends State<OrdersTab>
                                     ),
                                   ),
                                   Text(
-                                    '${itemTotal.toString()} €',
+                                    _formatCurrency(itemTotal),
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
@@ -1521,7 +1526,7 @@ class OrdersTabState extends State<OrdersTab>
                         ),
                       ),
                       Text(
-                        '${itemTotal.toString()} €',
+                        _formatCurrency(itemTotal),
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
@@ -1532,22 +1537,22 @@ class OrdersTabState extends State<OrdersTab>
                 );
               }),
               const Divider(),
-              _buildDetailRow('Sous-total', '${cartTotal.toString()} €'),
+              _buildDetailRow('Sous-total', _formatCurrency(cartTotal)),
               if (deliveryFee > 0)
                 _buildDetailRow(
                   'Frais de livraison',
-                  '${deliveryFee.toString()} €',
+                  _formatCurrency(deliveryFee),
                 ),
               if (expressFee > 0)
                 _buildDetailRow(
                   'Livraison express',
-                  '${expressFee.toString()} €',
+                  _formatCurrency(expressFee),
                 ),
-              if (tip > 0) _buildDetailRow('Pourboire', '${tip.toString()} €'),
+              if (tip > 0) _buildDetailRow('Pourboire', _formatCurrency(tip)),
               const Divider(),
               _buildDetailRow(
                 'Total final',
-                '${total.toString()} €',
+                _formatCurrency(total),
                 isTotal: true,
               ),
 
@@ -1802,6 +1807,8 @@ class OrdersTabState extends State<OrdersTab>
               ),
               child: TabBar(
                 controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.center,
                 indicator: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -1975,8 +1982,9 @@ class OrdersTabState extends State<OrdersTab>
   Widget _buildMobileTab(String label, int count) {
     return Row(
       mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(label),
+        Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
         if (count > 0)
           Padding(
             padding: const EdgeInsets.only(left: 4),

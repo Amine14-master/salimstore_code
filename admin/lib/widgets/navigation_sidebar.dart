@@ -57,7 +57,7 @@ class NavigationSidebar extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'Salim Store',
+                          'Livriyes',
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w700),
                         ),
@@ -362,3 +362,4 @@ class NavigationSidebar extends StatelessWidget {
     );
   }
 }
+

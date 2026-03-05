@@ -38,6 +38,7 @@ class RealtimeDatabaseService {
   static DatabaseReference get _usersRef => _database.ref('users');
   static DatabaseReference get _ordersRef => _database.ref('orders');
   static DatabaseReference get _statsRef => _database.ref('stats');
+  static DatabaseReference get _settingsRef => _database.ref('settings');
 
   static List<String> _stringListFrom(dynamic source) {
     if (source == null) return [];
@@ -69,31 +70,34 @@ class RealtimeDatabaseService {
     bool? isActive,
   }) async {
     try {
+      print(
+        'RealtimeDatabaseService: Getting promotions (isActive: $isActive)...',
+      );
       DataSnapshot snapshot;
-      if (isActive != null) {
-        try {
-          snapshot = await _promotionsRef
-              .orderByChild('isActive')
-              .equalTo(isActive)
-              .get();
-        } catch (_) {
-          snapshot = await _promotionsRef.get();
-        }
-      } else {
-        snapshot = await _promotionsRef.get();
-      }
+      snapshot = await _promotionsRef.get();
 
-      if (!snapshot.exists) return [];
+      if (!snapshot.exists) {
+        print('RealtimeDatabaseService: No promotions found in DB');
+        return [];
+      }
 
       final Map<dynamic, dynamic> raw = Map<dynamic, dynamic>.from(
         snapshot.value as Map,
       );
+
       final promotions = raw.entries
           .where((entry) => entry.value != null)
           .map((entry) => _mapFromSnapshot(entry.value, entry.key.toString()))
-          .where((promo) => isActive == null || promo['isActive'] == isActive)
+          .where((promo) {
+            if (isActive == null) return true;
+            // Handle both boolean and potential null/missing isActive field
+            return promo['isActive'] == isActive;
+          })
           .toList();
 
+      print(
+        'RealtimeDatabaseService: Found ${promotions.length} matching promotions',
+      );
       return promotions;
     } catch (e) {
       print('RealtimeDatabaseService: Error getting promotions: $e');
@@ -110,6 +114,7 @@ class RealtimeDatabaseService {
     double? discountPercentage,
     bool isActive = true,
     String? productId,
+    String priceUnit = '1kg',
   }) async {
     try {
       final newPromotion = _promotionsRef.push();
@@ -127,6 +132,7 @@ class RealtimeDatabaseService {
         'discountPercentage': computedDiscount,
         'isActive': isActive,
         'productId': productId,
+        'priceUnit': priceUnit,
         'createdAt': ServerValue.timestamp,
         'updatedAt': ServerValue.timestamp,
       });
@@ -146,6 +152,7 @@ class RealtimeDatabaseService {
     double? discountPercentage,
     bool? isActive,
     String? productId,
+    String? priceUnit,
   }) async {
     try {
       final computedDiscount =
@@ -160,8 +167,9 @@ class RealtimeDatabaseService {
         'imageUrl': imageUrl,
         'availableUnits': availableUnits,
         'discountPercentage': computedDiscount,
-        'isActive': isActive,
+        'isActive': isActive ?? true, // Default to true if not specified
         'productId': productId,
+        'priceUnit': priceUnit,
         'updatedAt': ServerValue.timestamp,
       });
     } catch (e) {
@@ -192,6 +200,7 @@ class RealtimeDatabaseService {
     required String description,
     required String iconName,
     required String color,
+    int order = 0,
   }) async {
     try {
       print('RealtimeDatabaseService: Adding category "$name"');
@@ -204,6 +213,7 @@ class RealtimeDatabaseService {
         'color': color,
         'subCategoryIds': <String>[],
         'createdAt': ServerValue.timestamp,
+        'order': order,
       });
 
       // Clear cache when categories are modified
@@ -226,6 +236,7 @@ class RealtimeDatabaseService {
     required String iconName,
     required String color,
     String? iconUrl,
+    int order = 0,
   }) async {
     try {
       final candidate = _slugify(name);
@@ -245,6 +256,7 @@ class RealtimeDatabaseService {
         'subCategoryIds': <String>[],
         'createdAt': ServerValue.timestamp,
         if (iconUrl != null) 'iconUrl': iconUrl,
+        'order': order,
       });
 
       _clearCategoriesCache();
@@ -317,6 +329,7 @@ class RealtimeDatabaseService {
             'createdAt':
                 categoryData['createdAt'] ??
                 DateTime.now().millisecondsSinceEpoch,
+            'order': categoryData['order'] ?? 0,
           });
 
           categories.add(category);
@@ -383,6 +396,20 @@ class RealtimeDatabaseService {
     } catch (e) {
       print('Error deleting category: $e');
       return false;
+    }
+  }
+
+  static Future<void> updateCategoriesOrder(List<Category> categories) async {
+    try {
+      final Map<String, dynamic> updates = {};
+      for (int i = 0; i < categories.length; i++) {
+        updates['${categories[i].id}/order'] = i;
+      }
+      await _categoriesRef.update(updates);
+      _clearCategoriesCache();
+    } catch (e) {
+      print('Error updating categories order: $e');
+      rethrow;
     }
   }
 
@@ -624,6 +651,7 @@ class RealtimeDatabaseService {
     required String name,
     required String description,
     required double price,
+    String priceUnit = '1kg', // Added
     required String imageUrl,
     required String categoryId,
     required String subCategoryId,
@@ -637,6 +665,7 @@ class RealtimeDatabaseService {
         'name': name,
         'description': description,
         'price': price,
+        'priceUnit': priceUnit, // Added
         'imageUrl': imageUrl,
         'rating': 0.0,
         'reviewCount': 0,
@@ -980,5 +1009,30 @@ class RealtimeDatabaseService {
       print('RealtimeDatabaseService: Test failed: $e');
       return false;
     }
+  }
+
+  // Delivery Prices
+  static Future<Map<String, dynamic>> getDeliveryPrices() async {
+    try {
+      final snapshot = await _settingsRef.child('deliveryPrices').get();
+      if (snapshot.exists) {
+        return Map<String, dynamic>.from(snapshot.value as Map);
+      }
+      return {'bejaiaCityFee': 3.49, 'otherWilayaFee': 8.99};
+    } catch (e) {
+      print('Error getting delivery prices: $e');
+      return {'bejaiaCityFee': 3.49, 'otherWilayaFee': 8.99};
+    }
+  }
+
+  static Future<void> updateDeliveryPrices(
+    double bejaiaFee,
+    double otherFee,
+  ) async {
+    await _settingsRef.child('deliveryPrices').set({
+      'bejaiaCityFee': bejaiaFee,
+      'otherWilayaFee': otherFee,
+      'lastUpdated': ServerValue.timestamp,
+    });
   }
 }

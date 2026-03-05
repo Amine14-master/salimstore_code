@@ -3,9 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:smssak/smssak.dart';
 
 class ForgotPasswordService {
-  static const String projectId = 'salimstore-pbuh0';
+  static const String projectId = 'livriyes-jtnhh';
   static const String apiKey =
-      'd9bef09e96e4ebab33c742b1e99d381a:de551fc323c606c5c6f9ab99159f624ab62ba343b6b61f9d0c5cd52882cf6195e78e23fb4218bdadf88f4b41fae26e074773911bd5981bb934fc19c3d9d26ec40230cdfd093e0cc22eacb227e136d14a';
+      '161dda8c8ec1ab38878a49118739b337:72539a888193c72bd7df43ba41b9210dad306c86a3fd3af36c0986892dabc650a66d887ec7ecd4a4fffa629f45a365261777555fd53fcb2c053b067e9ffb62a65d11e922de220be7b06380bb8474e568';
 
   static final OTPService _otpService = OTPService();
   static String? _verificationId;

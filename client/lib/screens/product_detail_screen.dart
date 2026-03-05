@@ -197,11 +197,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                         ),
                                       ),
                                       const SizedBox(height: 4),
-                                      Text(
-                                        FormattingUtils.formatPriceWithLocale(
-                                          widget.product.price,
-                                          Localizations.localeOf(context),
+                                      if (widget.product.originalPrice !=
+                                              null &&
+                                          widget.product.originalPrice! >
+                                              widget.product.price)
+                                        Text(
+                                          FormattingUtils.formatPriceWithLocale(
+                                            widget.product.originalPrice!,
+                                            Localizations.localeOf(context),
+                                          ),
+                                          style: TextStyle(
+                                            color: AppTheme.textSecondary,
+                                            fontSize: 14,
+                                            decoration:
+                                                TextDecoration.lineThrough,
+                                          ),
                                         ),
+                                      Text(
+                                        '${FormattingUtils.formatPriceWithLocale(widget.product.price, Localizations.localeOf(context))}',
                                         style: TextStyle(
                                           color: AppTheme.successColor,
                                           fontWeight: FontWeight.bold,

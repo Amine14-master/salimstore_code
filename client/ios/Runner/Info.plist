@@ -58,7 +58,7 @@
 		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 		<string>Cette application a besoin d'accéder à votre position pour vous permettre de sélectionner votre adresse de livraison sur la carte.</string>
 		<key>UIStatusBarHidden</key>
-		<true/>
+		<false/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
 	</dict>

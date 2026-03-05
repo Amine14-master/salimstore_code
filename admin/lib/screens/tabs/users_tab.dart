@@ -30,6 +30,7 @@ class _UsersTabState extends State<UsersTab> {
   Map<String, Map<String, dynamic>> _firestoreByPhone = {};
   List<_AppUser> _clientsNode = [];
   List<_AppUser> _usersNode = [];
+  final Set<String> _deletingIds = {};
 
   @override
   void initState() {
@@ -97,8 +98,11 @@ class _UsersTabState extends State<UsersTab> {
   _AppUser _enrichUser(_AppUser user) {
     final trimmedPhone = user.phone.trim();
     final normalizedPhone = _normalizePhone(trimmedPhone);
-    final data = _firestoreById[user.id] ??
-        (normalizedPhone.isNotEmpty ? _firestoreByPhone[normalizedPhone] : null);
+    final data =
+        _firestoreById[user.id] ??
+        (normalizedPhone.isNotEmpty
+            ? _firestoreByPhone[normalizedPhone]
+            : null);
     if (data == null) return user;
 
     final photo = data['photoUrl']?.toString();
@@ -120,16 +124,19 @@ class _UsersTabState extends State<UsersTab> {
   }
 
   void _recomputeUsers() {
-    print('[USER DEBUG] Recomputing users: clientsNode=${_clientsNode.length}, usersNode=${_usersNode.length}, firestoreById=${_firestoreById.length}');
-    
+    print(
+      '[USER DEBUG] Recomputing users: clientsNode=${_clientsNode.length}, usersNode=${_usersNode.length}, firestoreById=${_firestoreById.length}',
+    );
+
     final merged = [..._clientsNode, ..._usersNode];
     final Map<String, _AppUser> dedup = {};
 
     for (final user in merged) {
       print('[USER DEBUG] Processing user: ${user.id} - ${user.name}');
       final normalizedPhone = _normalizePhone(user.phone);
-      final key =
-          normalizedPhone.isNotEmpty ? 'p:$normalizedPhone' : 'i:${user.id}';
+      final key = normalizedPhone.isNotEmpty
+          ? 'p:$normalizedPhone'
+          : 'i:${user.id}';
       dedup[key] = _enrichUser(user);
     }
 
@@ -139,8 +146,7 @@ class _UsersTabState extends State<UsersTab> {
       final data = entry.value;
       final phone = data['phone']?.toString().trim() ?? '';
       final normalizedPhone = _normalizePhone(phone);
-      final key =
-          normalizedPhone.isNotEmpty ? 'p:$normalizedPhone' : 'i:$id';
+      final key = normalizedPhone.isNotEmpty ? 'p:$normalizedPhone' : 'i:$id';
       dedup.putIfAbsent(key, () => _buildUserFromFirestore(id, data));
     }
 
@@ -148,7 +154,7 @@ class _UsersTabState extends State<UsersTab> {
       ..sort((a, b) => b.createdAtMs.compareTo(a.createdAtMs));
 
     print('[USER DEBUG] Final user count: ${list.length}');
-    
+
     if (!mounted) return;
     setState(() {
       _users = list;
@@ -163,33 +169,33 @@ class _UsersTabState extends State<UsersTab> {
           .collection('clients')
           .snapshots()
           .listen(
-        (snapshot) {
-          final byId = <String, Map<String, dynamic>>{};
-          final byPhone = <String, Map<String, dynamic>>{};
+            (snapshot) {
+              final byId = <String, Map<String, dynamic>>{};
+              final byPhone = <String, Map<String, dynamic>>{};
 
-          for (final doc in snapshot.docs) {
-            final data = doc.data();
-            byId[doc.id] = data;
-            final phone = data['phone']?.toString().trim();
-            if (phone != null && phone.isNotEmpty) {
-              final normalizedPhone = _normalizePhone(phone);
-              if (normalizedPhone.isNotEmpty) {
-                byPhone[normalizedPhone] = data;
+              for (final doc in snapshot.docs) {
+                final data = doc.data();
+                byId[doc.id] = data;
+                final phone = data['phone']?.toString().trim();
+                if (phone != null && phone.isNotEmpty) {
+                  final normalizedPhone = _normalizePhone(phone);
+                  if (normalizedPhone.isNotEmpty) {
+                    byPhone[normalizedPhone] = data;
+                  }
+                }
               }
-            }
-          }
 
-          _firestoreById = byId;
-          _firestoreByPhone = byPhone;
-          _recomputeUsers();
-        },
-        onError: (error) {
-          print('Firestore clients stream error: $error');
-          _firestoreById = {};
-          _firestoreByPhone = {};
-          _recomputeUsers();
-        },
-      );
+              _firestoreById = byId;
+              _firestoreByPhone = byPhone;
+              _recomputeUsers();
+            },
+            onError: (error) {
+              print('Firestore clients stream error: $error');
+              _firestoreById = {};
+              _firestoreByPhone = {};
+              _recomputeUsers();
+            },
+          );
     } catch (e) {
       print('Unable to start Firestore clients listener: $e');
     }
@@ -209,12 +215,15 @@ class _UsersTabState extends State<UsersTab> {
         final list = <_AppUser>[];
         if (event.snapshot.exists && event.snapshot.value is Map) {
           final map = Map<dynamic, dynamic>.from(event.snapshot.value as Map);
-          print('[USER DEBUG] RTDB clients node received ${map.length} entries');
+          print(
+            '[USER DEBUG] RTDB clients node received ${map.length} entries',
+          );
           map.forEach((key, value) {
             if (value is Map) {
               final v = Map<dynamic, dynamic>.from(value);
-              final createdAt =
-                  v['createdAt'] is int ? v['createdAt'] as int : 0;
+              final createdAt = v['createdAt'] is int
+                  ? v['createdAt'] as int
+                  : 0;
               final phone = (v['phone'] ?? key.toString()).toString();
               list.add(
                 _AppUser(
@@ -244,47 +253,43 @@ class _UsersTabState extends State<UsersTab> {
     // Listen to RTDB 'users' (UID keyed)
     _usersSub?.cancel();
     print('[USER DEBUG] Listening to RTDB users node');
-    _usersSub = _db.ref('users').onValue.listen(
-      (event) {
-        final list = <_AppUser>[];
-        if (event.snapshot.exists && event.snapshot.value is Map) {
-          final map = Map<dynamic, dynamic>.from(event.snapshot.value as Map);
-          print('[USER DEBUG] RTDB users node received ${map.length} entries');
-          map.forEach((uid, value) {
-            if (value is Map) {
-              final v = Map<dynamic, dynamic>.from(value);
-              final name =
-                  (v['name'] ?? v['displayName'] ?? 'Utilisateur').toString();
-              final phone = (v['phone'] ?? v['phoneNumber'] ?? '').toString();
-              final email = (v['email'] ?? '').toString();
-              final photo =
-                  (v['photoUrl'] ?? v['photoURL'] ?? v['avatar'] ?? '')
-                      .toString();
-              final role = (v['role'] ?? 'client').toString();
-              int createdAt = 0;
-              if (v['createdAt'] is int) createdAt = v['createdAt'] as int;
-              list.add(
-                _AppUser(
-                  id: uid.toString(),
-                  name: name,
-                  phone: phone,
-                  email: email,
-                  photoUrl: photo.isNotEmpty ? photo : null,
-                  role: role,
-                  createdAtMs: createdAt,
-                ),
-              );
-            }
-          });
-        } else {
-          print('[USER DEBUG] RTDB users node has no data');
-        }
-        _usersNode = list;
-        print('[USER DEBUG] _usersNode now has ${_usersNode.length} users');
-        _recomputeUsers();
-      },
-      onError: (error) => print('[USER ERROR] Error listening users: $error'),
-    );
+    _usersSub = _db.ref('users').onValue.listen((event) {
+      final list = <_AppUser>[];
+      if (event.snapshot.exists && event.snapshot.value is Map) {
+        final map = Map<dynamic, dynamic>.from(event.snapshot.value as Map);
+        print('[USER DEBUG] RTDB users node received ${map.length} entries');
+        map.forEach((uid, value) {
+          if (value is Map) {
+            final v = Map<dynamic, dynamic>.from(value);
+            final name = (v['name'] ?? v['displayName'] ?? 'Utilisateur')
+                .toString();
+            final phone = (v['phone'] ?? v['phoneNumber'] ?? '').toString();
+            final email = (v['email'] ?? '').toString();
+            final photo = (v['photoUrl'] ?? v['photoURL'] ?? v['avatar'] ?? '')
+                .toString();
+            final role = (v['role'] ?? 'client').toString();
+            int createdAt = 0;
+            if (v['createdAt'] is int) createdAt = v['createdAt'] as int;
+            list.add(
+              _AppUser(
+                id: uid.toString(),
+                name: name,
+                phone: phone,
+                email: email,
+                photoUrl: photo.isNotEmpty ? photo : null,
+                role: role,
+                createdAtMs: createdAt,
+              ),
+            );
+          }
+        });
+      } else {
+        print('[USER DEBUG] RTDB users node has no data');
+      }
+      _usersNode = list;
+      print('[USER DEBUG] _usersNode now has ${_usersNode.length} users');
+      _recomputeUsers();
+    }, onError: (error) => print('[USER ERROR] Error listening users: $error'));
   }
 
   Future<void> _deleteUser(_AppUser user) async {
@@ -310,14 +315,50 @@ class _UsersTabState extends State<UsersTab> {
       ),
     );
     if (confirmed == true) {
-      await _db.ref('clients').child(user.id).remove();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${user.name} a été supprimé'),
-            backgroundColor: AppTheme.successColor,
-          ),
-        );
+      if (!mounted) return;
+      setState(() {
+        _deletingIds.add(user.id);
+        // Optimistic UI: remove from local list immediately
+        _users.removeWhere((u) => u.id == user.id);
+      });
+
+      try {
+        // 1. Delete from RTDB 'clients' node
+        await _db.ref('clients').child(user.id).remove();
+
+        // 2. Delete from RTDB 'users' node
+        await _db.ref('users').child(user.id).remove();
+
+        // 3. Delete from Firestore 'clients' collection
+        await FirebaseFirestore.instance
+            .collection('clients')
+            .doc(user.id)
+            .delete();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${user.name} a été supprimé définitivement'),
+              backgroundColor: AppTheme.successColor,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur lors de la suppression: $e'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+          // Re-trigger a recompute to restore if it failed or just wait for next sync
+          _recomputeUsers();
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _deletingIds.remove(user.id));
+        }
       }
     }
   }
@@ -368,6 +409,7 @@ class _UsersTabState extends State<UsersTab> {
                       return _UserTile(
                         user: u,
                         displayPhone: _formatDisplayPhone(u.phone),
+                        isDeleting: _deletingIds.contains(u.id),
                         onDelete: () => _deleteUser(u),
                       );
                     },
@@ -383,10 +425,12 @@ class _UserTile extends StatelessWidget {
   final _AppUser user;
   final VoidCallback onDelete;
   final String displayPhone;
+  final bool isDeleting;
   const _UserTile({
     required this.user,
     required this.onDelete,
     required this.displayPhone,
+    this.isDeleting = false,
   });
 
   Future<void> _showAddressesMapDialog(BuildContext context) async {
@@ -404,7 +448,8 @@ class _UserTile extends StatelessWidget {
         addrMap.forEach((key, value) {
           if (value is Map) {
             final addr = Map<dynamic, dynamic>.from(value);
-            final full = addr['fullAddress']?.toString() ??
+            final full =
+                addr['fullAddress']?.toString() ??
                 addr['address']?.toString() ??
                 '${addr['wilaya'] ?? ''}, ${addr['commune'] ?? ''}';
             if (full.trim().isNotEmpty) addressList.add(full.trim());
@@ -424,14 +469,14 @@ class _UserTile extends StatelessWidget {
 
     // Build a Google Maps directions URL with waypoints
     final origin = Uri.encodeComponent(addressList.first);
-    final destination = Uri.encodeComponent(addressList.length > 1
-        ? addressList.last
-        : addressList.first);
+    final destination = Uri.encodeComponent(
+      addressList.length > 1 ? addressList.last : addressList.first,
+    );
     final waypoints = addressList.length > 2
         ? addressList
-            .sublist(1, addressList.length - 1)
-            .map(Uri.encodeComponent)
-            .join('|')
+              .sublist(1, addressList.length - 1)
+              .map(Uri.encodeComponent)
+              .join('|')
         : '';
     final mapsUrl = waypoints.isNotEmpty
         ? 'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=$destination&travelmode=driving&waypoints=$waypoints'
@@ -462,31 +507,39 @@ class _UserTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (addressList.isNotEmpty)
-                ...addressList.map((a) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.place, size: 16, color: AppTheme.textSecondary),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              a,
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              final u = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(a)}');
-                              if (await canLaunchUrl(u)) {
-                                await launchUrl(u, mode: LaunchMode.externalApplication);
-                              }
-                            },
-                            child: const Text('Ouvrir'),
-                          ),
-                        ],
-                      ),
-                    )),
+                ...addressList.map(
+                  (a) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.place,
+                          size: 16,
+                          color: AppTheme.textSecondary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(a, style: theme.textTheme.bodyMedium),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            final u = Uri.parse(
+                              'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(a)}',
+                            );
+                            if (await canLaunchUrl(u)) {
+                              await launchUrl(
+                                u,
+                                mode: LaunchMode.externalApplication,
+                              );
+                            }
+                          },
+                          child: const Text('Ouvrir'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -496,12 +549,18 @@ class _UserTile extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, size: 18, color: AppTheme.textSecondary),
+                    const Icon(
+                      Icons.info_outline,
+                      size: 18,
+                      color: AppTheme.textSecondary,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         "Cliquez sur 'Ouvrir la carte' pour afficher toutes les adresses en même temps dans Google Maps.",
-                        style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
                     ),
                   ],
@@ -843,8 +902,9 @@ class _UserTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final displayName =
-        user.name.trim().isNotEmpty ? user.name.trim() : 'Client';
+    final displayName = user.name.trim().isNotEmpty
+        ? user.name.trim()
+        : 'Client';
     final locationParts = [user.wilaya.trim(), user.commune.trim()]
       ..removeWhere((element) => element.isEmpty);
     final location = locationParts.isNotEmpty ? locationParts.join(', ') : '';
@@ -858,10 +918,7 @@ class _UserTile extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppTheme.primaryColor.withOpacity(0.08),
-            Colors.white,
-          ],
+          colors: [AppTheme.primaryColor.withOpacity(0.08), Colors.white],
         ),
         border: Border.all(color: AppTheme.primaryColor.withOpacity(0.08)),
         boxShadow: AppShadows.subtle,
@@ -924,10 +981,12 @@ class _UserTile extends StatelessWidget {
                                   vertical: AppSpacing.xs,
                                 ),
                                 decoration: BoxDecoration(
-                                  color:
-                                      AppTheme.primaryColor.withOpacity(0.12),
-                                  borderRadius:
-                                      BorderRadius.circular(AppRadii.sm),
+                                  color: AppTheme.primaryColor.withOpacity(
+                                    0.12,
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.sm,
+                                  ),
                                 ),
                                 child: Text(
                                   user.role,
@@ -1030,8 +1089,9 @@ class _UserTile extends StatelessWidget {
                         if (user.phone.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content:
-                                  Text('Numéro de téléphone non disponible'),
+                              content: Text(
+                                'Numéro de téléphone non disponible',
+                              ),
                               backgroundColor: AppTheme.warningColor,
                             ),
                           );
@@ -1063,10 +1123,13 @@ class _UserTile extends StatelessWidget {
                       },
                     ),
                     _ActionButton(
-                      icon: Icons.delete_rounded,
+                      icon: isDeleting
+                          ? Icons.hourglass_empty_rounded
+                          : Icons.delete_rounded,
                       color: AppTheme.errorColor,
-                      tooltip: 'Supprimer',
-                      onTap: onDelete,
+                      tooltip: isDeleting ? 'Suppression...' : 'Supprimer',
+                      onTap: isDeleting ? () {} : onDelete,
+                      isLoading: isDeleting,
                     ),
                   ],
                 ),
@@ -1084,19 +1147,22 @@ class _ActionButton extends StatelessWidget {
   final Color color;
   final String tooltip;
   final VoidCallback onTap;
+  final bool isLoading;
   const _ActionButton({
     required this.icon,
     required this.color,
     required this.tooltip,
     required this.onTap,
+    this.isLoading = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColor = isLoading ? color.withOpacity(0.5) : color;
     return Tooltip(
       message: tooltip,
       child: InkWell(
-        onTap: onTap,
+        onTap: isLoading ? null : onTap,
         borderRadius: BorderRadius.circular(AppRadii.sm),
         child: Container(
           padding: const EdgeInsets.symmetric(
@@ -1104,18 +1170,28 @@ class _ActionButton extends StatelessWidget {
             vertical: AppSpacing.xs,
           ),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: effectiveColor.withOpacity(0.12),
             borderRadius: BorderRadius.circular(AppRadii.sm),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 18),
-              const SizedBox(width: 6),
+              if (isLoading)
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(effectiveColor),
+                  ),
+                )
+              else
+                Icon(icon, color: effectiveColor, size: 18),
+              const SizedBox(width: 8),
               Text(
                 tooltip,
                 style: TextStyle(
-                  color: color,
+                  color: effectiveColor,
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),

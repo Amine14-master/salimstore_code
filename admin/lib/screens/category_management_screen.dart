@@ -10,6 +10,7 @@ import '../models/product_models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/admin_search_bar.dart';
 import '../firebase_options.dart';
+import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
 IconData iconForNameGlobal(String name) {
   switch (name.toLowerCase()) {
@@ -283,7 +284,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
             print('Error parsing category: $e');
           }
         }
-        categories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        categories.sort((a, b) => a.order.compareTo(b.order));
 
         if (mounted) {
           setState(() {
@@ -674,6 +675,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                 iconUrl: iconUrlCtrl.text.trim().isEmpty
                     ? null
                     : iconUrlCtrl.text.trim(),
+                order: _categories.length,
               );
 
           if (categoryId == null) {
@@ -938,6 +940,118 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
     }
   }
 
+  Future<void> _showReorderDialog() async {
+    List<Category> localCategories = List.from(_categories);
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Définir l\'ordre des catégories'),
+              content: SizedBox(
+                width: 500,
+                height: 500,
+                child: ReorderableGridView.count(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  dragStartDelay: Duration.zero,
+                  onReorder: (oldIndex, newIndex) {
+                    setDialogState(() {
+                      final item = localCategories.removeAt(oldIndex);
+                      localCategories.insert(newIndex, item);
+                    });
+                  },
+                  children: localCategories.map((cat) {
+                    final color = _parseColor(cat.color);
+                    return Container(
+                      key: ValueKey(cat.id),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: color.withOpacity(0.3)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: color.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            iconForNameGlobal(cat.iconName),
+                            color: color,
+                            size: 32,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            cat.name,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Annuler'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Enregistrer'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == true) {
+      setState(() => _loading = true);
+      try {
+        await RealtimeDatabaseService.updateCategoriesOrder(localCategories);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ordre mis à jour avec succès'),
+              backgroundColor: AppTheme.successColor,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur: $e'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _loading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -991,6 +1105,11 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen> {
                 onPressed: _load,
                 icon: const Icon(Icons.refresh_rounded, color: Colors.white),
                 tooltip: 'Rafraîchir',
+              ),
+              IconButton(
+                onPressed: _showReorderDialog,
+                icon: const Icon(Icons.reorder_rounded, color: Colors.white),
+                tooltip: 'Définir l\'ordre',
               ),
             ],
             bottom: PreferredSize(

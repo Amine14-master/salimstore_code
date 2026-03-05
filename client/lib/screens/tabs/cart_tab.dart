@@ -69,9 +69,8 @@ class CartTab extends StatefulWidget {
 
 class _CartTabState extends State<CartTab> {
   static const double _expressDeliveryTotalCost = 25.0;
-  static const double _bejaiaCityDeliveryFee = 3.49;
-  static const double _bejaiaCommuneDeliveryFee = 3.49;
-  static const double _otherWilayaDeliveryFee = 8.99;
+  double _bejaiaFee = 3.49;
+  double _otherWilayaFee = 8.99;
 
   static const Set<String> _allowedWilayaCodes = {'06', '15', '18', '19', '34'};
   static const Map<String, String> _wilayaDisplayNames = {
@@ -101,6 +100,7 @@ class _CartTabState extends State<CartTab> {
 
   StreamSubscription<List<CartItem>>? _cartSubscription;
   StreamSubscription<Map<String, dynamic>?>? _defaultAddressSubscription;
+  StreamSubscription<Map<String, dynamic>>? _pricesSubscription;
   final FocusNode _customTipFocusNode = FocusNode();
   String? _receiverName;
   String? _receiverPhone;
@@ -187,13 +187,10 @@ class _CartTabState extends State<CartTab> {
 
     double fee;
     if (wilayaCode == '06') {
-      final isBejaiaCity = _isBejaiaCity(
-        context.communeName,
-        context.simplifiedAddress,
-      );
-      fee = isBejaiaCity ? _bejaiaCityDeliveryFee : _bejaiaCommuneDeliveryFee;
+      // Use the dynamic _bejaiaFee for any location in Bejaia
+      fee = _bejaiaFee;
     } else {
-      fee = _otherWilayaDeliveryFee;
+      fee = _otherWilayaFee;
     }
 
     final displayWilaya = _wilayaDisplayNames[wilayaCode] ?? context.wilayaName;
@@ -328,12 +325,6 @@ class _CartTabState extends State<CartTab> {
     return null;
   }
 
-  bool _isBejaiaCity(String? communeName, String simplifiedAddress) {
-    final simplifiedCommune = communeName != null ? _simplify(communeName) : '';
-    return simplifiedCommune.contains('bejaia') ||
-        simplifiedAddress.contains('bejaia');
-  }
-
   double? _parseCoordinate(dynamic value) {
     if (value == null) return null;
     if (value is double) return value;
@@ -373,6 +364,22 @@ class _CartTabState extends State<CartTab> {
       }
     });
 
+    // Listen for delivery prices changes
+    _pricesSubscription = RealtimeDatabaseService.deliveryPricesStream().listen(
+      (prices) {
+        if (mounted) {
+          setState(() {
+            _bejaiaFee = (prices['bejaiaCityFee'] as num).toDouble();
+            _otherWilayaFee = (prices['otherWilayaFee'] as num).toDouble();
+            // Re-calculate fee if address is already selected
+            if (_selectedAddress != null) {
+              _updateDeliveryContext(_selectedAddress!);
+            }
+          });
+        }
+      },
+    );
+
     // Proactively wake up server when user opens cart
     ServerWakeupService.wakeupServer();
   }
@@ -381,6 +388,7 @@ class _CartTabState extends State<CartTab> {
   void dispose() {
     _cartSubscription?.cancel();
     _defaultAddressSubscription?.cancel();
+    _pricesSubscription?.cancel();
     _customTipController.dispose();
     _customTipFocusNode.dispose();
     super.dispose();
@@ -814,17 +822,7 @@ class _CartTabState extends State<CartTab> {
   }
 
   double _getIncrementStep(String unit) {
-    final lowerUnit = unit.toLowerCase();
-    if (lowerUnit.contains('kg')) return 0.5;
-    if (lowerUnit.contains('g')) {
-      final match = RegExp(r'(\d+)').firstMatch(lowerUnit);
-      if (match != null) {
-        return double.tryParse(match.group(1)!) ?? 100.0;
-      }
-      return 100.0;
-    }
-    if (lowerUnit.contains('l')) return 0.5;
-    return 1.0;
+    return PricingUtils.getQuantityStep(unit);
   }
 
   String _formatQuantity(double qty, String unit) {
@@ -1224,9 +1222,9 @@ class _CartTabState extends State<CartTab> {
 
   bool _isExpressAvailable(double cartTotal) {
     // Express allowed only if delivery is available, not in Béjaïa,
-    // and (cart + tip) is strictly above 25€
+    // and (cart + tip) is >= 25€
     final baseTotal = cartTotal + _tip;
-    return _deliveryAvailable && !_isBejaia && baseTotal > 25.0;
+    return _deliveryAvailable && !_isBejaia && baseTotal >= 25.0;
   }
 
   void _refreshExpressSelection() {
@@ -1931,20 +1929,6 @@ class _CartTabState extends State<CartTab> {
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'Livraison Express (48h) à partir de 25€ d\'achat',
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(
-                                              alpha: _expressDelivery
-                                                  ? 0.9
-                                                  : 0.8,
-                                            ),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
                                       ],
                                       Text(
                                         PricingUtils.formatPriceWithUnit(
@@ -2006,7 +1990,25 @@ class _CartTabState extends State<CartTab> {
                                               horizontal: 10,
                                             ),
                                             child: Text(
-                                              '${_formatQuantity(_cartItems[i].quantity, _cartItems[i].unit)} ${_cartItems[i].unit}',
+                                              (_cartItems[i].unit
+                                                              .toLowerCase()
+                                                              .contains('kg') ||
+                                                          (_cartItems[i].unit
+                                                                  .toLowerCase()
+                                                                  .contains(
+                                                                    'l',
+                                                                  ) &&
+                                                              !_cartItems[i]
+                                                                  .unit
+                                                                  .toLowerCase()
+                                                                  .contains(
+                                                                    'ml',
+                                                                  ))) &&
+                                                      !RegExp(r'^\d').hasMatch(
+                                                        _cartItems[i].unit,
+                                                      )
+                                                  ? '${_formatQuantity(_cartItems[i].quantity, _cartItems[i].unit)} ${_cartItems[i].unit}'
+                                                  : '${_formatQuantity(_cartItems[i].quantity, _cartItems[i].unit)} x ${_cartItems[i].unit}',
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 13,
@@ -2042,6 +2044,15 @@ class _CartTabState extends State<CartTab> {
                                               color: AppTheme.primaryColor,
                                             ),
                                           ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '= ${PricingUtils.formatTotalWeight(_cartItems[i].quantity, _cartItems[i].unit)}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppTheme.successColor,
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ],
@@ -2059,6 +2070,13 @@ class _CartTabState extends State<CartTab> {
                                               fontWeight: FontWeight.w700,
                                               fontSize: 15,
                                             ),
+                                      ),
+                                      Text(
+                                        '(${_formatPrice(_cartItems[i].unitPrice)} / ${_cartItems[i].unit})',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: AppTheme.textSecondary,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -2112,8 +2130,8 @@ class _CartTabState extends State<CartTab> {
                           if (_deliveryAvailable) ...[
                             Row(
                               children: [
-                                // Compact Express Delivery (only if outside Béjaïa)
-                                if (!_isBejaia) ...[
+                                // Compact Express Delivery (only if outside Béjaïa and total >= 25)
+                                if (!_isBejaia && canUseExpress) ...[
                                   Expanded(
                                     flex: 3,
                                     child: InkWell(

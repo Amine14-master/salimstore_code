@@ -354,25 +354,40 @@ class _FavoritesTabState extends State<FavoritesTab> {
                                 product.name,
                                 style: Theme.of(context).textTheme.bodyMedium
                                     ?.copyWith(fontWeight: FontWeight.w600),
-                                maxLines: 1,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              FormattingUtils.formatPriceWithLocale(
-                                product.price,
-                                Localizations.localeOf(context),
-                              ),
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: AppTheme.primaryColor,
-                                    fontWeight: FontWeight.w700,
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                if (product.originalPrice != null &&
+                                    product.originalPrice! > product.price)
+                                  Text(
+                                    FormattingUtils.formatPriceWithLocale(
+                                      product.originalPrice!,
+                                      Localizations.localeOf(context),
+                                    ),
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 10,
+                                      decoration: TextDecoration.lineThrough,
+                                    ),
                                   ),
+                                Text(
+                                  '${FormattingUtils.formatPriceWithLocale(product.price, Localizations.localeOf(context))}',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: AppTheme.primaryColor,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const Spacer(),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(

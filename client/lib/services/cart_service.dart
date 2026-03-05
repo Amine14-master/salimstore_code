@@ -14,6 +14,7 @@ class CartItem {
   final String unit;
   final double? originalPrice; // Original price before promotion
   final double? discountPercentage; // Discount percentage if on promotion
+  final String priceUnit; // Base price unit (e.g., '1kg', '100g')
 
   CartItem({
     required this.id,
@@ -25,6 +26,7 @@ class CartItem {
     required this.unit,
     this.originalPrice,
     this.discountPercentage,
+    this.priceUnit = '1kg',
   });
 
   Map<String, dynamic> toJson() => {
@@ -37,6 +39,7 @@ class CartItem {
     'unit': unit,
     if (originalPrice != null) 'originalPrice': originalPrice,
     if (discountPercentage != null) 'discountPercentage': discountPercentage,
+    'priceUnit': priceUnit,
   };
 
   factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
@@ -53,33 +56,13 @@ class CartItem {
     discountPercentage: json['discountPercentage'] != null
         ? (json['discountPercentage'] as num).toDouble()
         : null,
+    priceUnit: json['priceUnit'] ?? '1kg',
   );
 
-  double get _priceDivisor {
-    final lowerUnit = unit.toLowerCase();
-    // If unit is kg or l, quantity is already in that unit (e.g. 1.5kg), so we multiply by quantity directly (divisor 1).
-    if (lowerUnit.contains('kg') ||
-        (lowerUnit.contains('l') && !lowerUnit.contains('ml'))) {
-      return 1.0;
-    }
+  double get totalPrice => quantity * unitPrice;
 
-    // If unit contains 'g' or 'ml', check for a number prefix (e.g. 250g).
-    if (lowerUnit.contains('g') || lowerUnit.contains('ml')) {
-      final match = RegExp(r'(\d+)').firstMatch(lowerUnit);
-      if (match != null) {
-        final val = double.tryParse(match.group(1)!);
-        if (val != null && val > 0) return val;
-      }
-    }
-
-    return 1.0;
-  }
-
-  double get totalPrice => (quantity / _priceDivisor) * unitPrice;
-
-  double? get totalOriginalPrice => originalPrice == null
-      ? null
-      : (quantity / _priceDivisor) * originalPrice!;
+  double? get totalOriginalPrice =>
+      originalPrice == null ? null : quantity * originalPrice!;
 
   bool get isOnPromotion => originalPrice != null && discountPercentage != null;
 }
@@ -126,6 +109,7 @@ class CartService {
     required String unit,
     double? originalPrice,
     double? discountPercentage,
+    String priceUnit = '1kg',
   }) async {
     final items = await getCartItems();
 
@@ -146,6 +130,7 @@ class CartService {
         unit: unit,
         originalPrice: originalPrice,
         discountPercentage: discountPercentage,
+        priceUnit: priceUnit,
       );
     } else {
       // Add new item
@@ -160,6 +145,7 @@ class CartService {
           unit: unit,
           originalPrice: originalPrice,
           discountPercentage: discountPercentage,
+          priceUnit: priceUnit,
         ),
       );
     }
@@ -190,6 +176,7 @@ class CartService {
           unit: existingItem.unit,
           originalPrice: existingItem.originalPrice,
           discountPercentage: existingItem.discountPercentage,
+          priceUnit: existingItem.priceUnit,
         );
       }
       await _saveCart(items);

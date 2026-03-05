@@ -26,8 +26,8 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
   SubCategory? _selectedSubCategory;
   bool _isLoading = true;
   String _searchQuery = '';
-  String _sortBy = 'name';
-  bool _sortAscending = true;
+  String _sortBy = 'createdAt';
+  bool _sortAscending = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -289,17 +289,18 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
         slivers: [
           // Modern App Bar
           SliverAppBar(
-            expandedHeight: isDesktop ? 112 : 96,
-            floating: false,
+            floating: true,
             pinned: true,
+            toolbarHeight: 56,
             backgroundColor: AppTheme.primaryColor,
             flexibleSpace: FlexibleSpaceBar(
+              titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
               title: Text(
                 'Gestion des Produits',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
-                  fontSize: isDesktop ? 22 : 18,
+                  fontSize: isDesktop ? 20 : 18,
                 ),
               ),
               background: Container(
@@ -994,7 +995,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    AppTheme.formatCurrency(product.price),
+                    '${AppTheme.formatCurrency(product.price)} / ${product.priceUnit}',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -1084,6 +1085,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   final _priceController = TextEditingController();
   final _imageUrlController = TextEditingController();
   List<String> _selectedUnits = [];
+  String _selectedPriceUnit = '1kg'; // Added
   bool _isLoading = false;
   List<Category> _allCategories = [];
   Map<String, List<SubCategory>> _subCategoriesByCategory = {};
@@ -1101,6 +1103,8 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     'litre',
   ];
 
+  final List<String> _priceUnits = ['100g', '250g', '500g', '1kg', 'unité'];
+
   List<String> _getDefaultUnits(String? categoryName) {
     if (categoryName == null) return ['unité'];
     return PricingUtils.getAvailableUnitsForCategory(categoryName);
@@ -1115,11 +1119,14 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       _priceController.text = widget.product!.price.toString();
       _imageUrlController.text = widget.product!.imageUrl;
       _selectedUnits = List.from(widget.product!.availableUnits);
+      _selectedPriceUnit = widget.product!.priceUnit; // Added
     } else if (widget.initialCategory != null) {
       // Set default units based on provided category
       _selectedUnits = _getDefaultUnits(widget.initialCategory!.name);
+      _selectedPriceUnit = '1kg';
     } else {
       _selectedUnits = _getDefaultUnits(null);
+      _selectedPriceUnit = '1kg';
     }
     _selectedCategory = widget.initialCategory;
     _selectedSubCategory = widget.initialSubCategory;
@@ -1262,16 +1269,19 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
         // Update product
         final oldCategoryId = widget.product!.categoryId;
         final oldSubCategoryId = widget.product!.subCategoryId;
-        final success =
-            await RealtimeDatabaseService.updateProduct(widget.product!.id, {
-              'name': _nameController.text.trim(),
-              'description': _descriptionController.text.trim(),
-              'price': price,
-              'imageUrl': imageUrl,
-              'availableUnits': _selectedUnits,
-              'categoryId': _selectedCategory!.id,
-              'subCategoryId': _selectedSubCategory!.id,
-            });
+        final success = await RealtimeDatabaseService.updateProduct(
+          widget.product!.id,
+          {
+            'name': _nameController.text.trim(),
+            'description': _descriptionController.text.trim(),
+            'price': price,
+            'priceUnit': _selectedPriceUnit, // Added
+            'imageUrl': imageUrl,
+            'availableUnits': _selectedUnits,
+            'categoryId': _selectedCategory!.id,
+            'subCategoryId': _selectedSubCategory!.id,
+          },
+        );
 
         if (success) {
           final categoryChanged = oldCategoryId != _selectedCategory!.id;
@@ -1300,6 +1310,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
           name: _nameController.text.trim(),
           description: _descriptionController.text.trim(),
           price: price,
+          priceUnit: _selectedPriceUnit, // Added
           imageUrl: imageUrl,
           categoryId: _selectedCategory!.id,
           subCategoryId: _selectedSubCategory!.id,
@@ -1470,6 +1481,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                         helperText: _selectedCategory != null
                             ? PricingUtils.getPricingHint(
                                 _selectedCategory!.name,
+                                _selectedPriceUnit,
                               )
                             : 'Sélectionnez une catégorie pour voir les détails',
                         helperStyle: TextStyle(
@@ -1490,6 +1502,42 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                         }
                         return null;
                       },
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Price Unit Selection
+                    Text(
+                      'Unité du prix affiché',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      children: _priceUnits.map((unit) {
+                        final isSelected = _selectedPriceUnit == unit;
+                        return ChoiceChip(
+                          label: Text(unit),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() => _selectedPriceUnit = unit);
+                            }
+                          },
+                          selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+                          checkmarkColor: AppTheme.primaryColor,
+                          labelStyle: TextStyle(
+                            color: isSelected
+                                ? AppTheme.primaryColor
+                                : AppTheme.textPrimary,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        );
+                      }).toList(),
                     ),
                     const SizedBox(height: 20),
 

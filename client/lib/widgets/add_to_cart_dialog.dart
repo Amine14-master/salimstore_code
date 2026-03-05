@@ -79,6 +79,7 @@ class _AddToCartDialogState extends State<AddToCartDialog> {
       final basePrice = PricingUtils.calculatePriceForUnit(
         widget.product.price,
         _selectedUnit!,
+        widget.product.priceUnit,
       );
       return basePrice * (1 - discount / 100);
     }
@@ -91,6 +92,7 @@ class _AddToCartDialogState extends State<AddToCartDialog> {
         PricingUtils.calculatePriceForUnit(
           widget.product.price,
           _selectedUnit!,
+          widget.product.priceUnit,
         );
   }
 
@@ -119,46 +121,7 @@ class _AddToCartDialogState extends State<AddToCartDialog> {
   }
 
   String _formatTotalAmount(double qty, String unit) {
-    // Calculate and display total amount (quantity × unit value)
-    // E.g., 7 × 100g = 700g, 2 × 500g = 1kg
-
-    if (unit.toLowerCase().contains('kg')) {
-      // For kg units, just show the quantity
-      final totalKg = qty;
-      if (totalKg >= 1) {
-        return '${totalKg.toStringAsFixed(totalKg % 1 == 0 ? 0 : 1).replaceAll('.', ',')} kg';
-      } else {
-        return '${(totalKg * 1000).toInt()}g';
-      }
-    } else if (unit.toLowerCase().contains('g')) {
-      // Extract gram value from unit (e.g., "100g" → 100)
-      final gramMatch = RegExp(r'(\d+)').firstMatch(unit);
-      if (gramMatch != null) {
-        final gramsPerUnit = int.parse(gramMatch.group(1)!);
-        final totalGrams = (qty * gramsPerUnit);
-
-        // Convert to kg if >= 1000g
-        if (totalGrams >= 1000) {
-          final kg = totalGrams / 1000;
-          return '${kg.toStringAsFixed(kg % 1 == 0 ? 0 : 1).replaceAll('.', ',')} kg';
-        } else {
-          return '${totalGrams.toInt()}g';
-        }
-      }
-      // Fallback if no number found in unit
-      return '${qty.toInt()} $unit';
-    } else if (unit.toLowerCase().contains('l')) {
-      // For liters, show total
-      final totalL = qty;
-      return '${totalL.toStringAsFixed(totalL % 1 == 0 ? 0 : 1).replaceAll('.', ',')}L';
-    } else {
-      // For pieces or other units
-      if (qty % 1 == 0) {
-        return '${qty.toInt()} $unit';
-      } else {
-        return '${qty.toStringAsFixed(1).replaceAll('.', ',')} $unit';
-      }
-    }
+    return PricingUtils.formatTotalWeight(qty, unit);
   }
 
   @override
@@ -382,6 +345,7 @@ class _AddToCartDialogState extends State<AddToCartDialog> {
                                       PricingUtils.calculatePriceForUnit(
                                             widget.product.price,
                                             _selectedUnit!,
+                                            widget.product.priceUnit,
                                           ) *
                                           _quantity,
                                     ),
@@ -458,7 +422,11 @@ class _AddToCartDialogState extends State<AddToCartDialog> {
                       ? () async {
                           final currentPrice = _getCurrentPrice();
                           final originalPrice = _isOnPromotion
-                              ? widget.product.price
+                              ? PricingUtils.calculatePriceForUnit(
+                                  widget.product.price,
+                                  _selectedUnit!,
+                                  widget.product.priceUnit,
+                                )
                               : null;
                           final discount = _isOnPromotion
                               ? _promotionDiscounts[widget.product.id]
@@ -474,6 +442,7 @@ class _AddToCartDialogState extends State<AddToCartDialog> {
                             unit: _selectedUnit!,
                             originalPrice: originalPrice,
                             discountPercentage: discount,
+                            priceUnit: widget.product.priceUnit,
                           );
                           if (context.mounted) {
                             Navigator.pop(context, {

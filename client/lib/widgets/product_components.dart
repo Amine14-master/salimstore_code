@@ -153,12 +153,19 @@ class ProductCard extends StatelessWidget {
                       locale,
                     );
 
-                    return Text(
-                      priceText,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          priceText,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                      ],
                     );
                   },
                 ),

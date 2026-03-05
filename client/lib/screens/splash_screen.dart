@@ -15,7 +15,9 @@ class SplashScreen extends StatelessWidget {
           child: Transform.scale(
             scale: 1.3,
             child: Image.asset(
-              'lib/assets/images/splash_screen.png',
+              'lib/assets/images/image.png',
+              width: double.infinity,
+              height: double.infinity,
               fit: BoxFit.cover,
             ),
           ),

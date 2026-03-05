@@ -22,17 +22,12 @@ void main() async {
   // Initialize WebView platform (only on web, no-op on mobile)
   initializeWebView();
 
-  // Check if Firebase is already initialized
+  // Ensure Firebase is initialized
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
-
-  // Disable app verification for testing (bypasses reCAPTCHA for test numbers)
-  await FirebaseAuth.instance.setSettings(
-    appVerificationDisabledForTesting: true,
-  );
 
   final localeController = LocaleController();
   await localeController.loadSavedLocale();

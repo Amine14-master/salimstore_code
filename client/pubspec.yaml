@@ -1,5 +1,5 @@
 name: client
-description: "A new Flutter project."
+description: "Livriyes - Livraison de produits frais aux wilaya ."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.2
 
 environment:
   sdk: ^3.9.2
@@ -157,9 +157,9 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   color: "#ffffff"
-  image: lib/assets/images/splash_screen.png
-  fullscreen: true
+  image: lib/assets/images/image.png
+  fullscreen: false
   android_12:
-    image: lib/assets/images/splash_screen.png
+    image: lib/assets/images/image.png
     color: "#ffffff"
     
