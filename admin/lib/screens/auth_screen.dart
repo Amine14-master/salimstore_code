@@ -185,7 +185,7 @@ class _AdminAuthScreenState extends State<AdminAuthScreen> {
             .fadeIn(duration: 400.ms),
         const SizedBox(height: 24),
         Text(
-              'Salim Store',
+              'Livriyes',
               style: Theme.of(context).textTheme.displayMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textPrimary,
@@ -479,3 +479,4 @@ class _AdminAuthScreenState extends State<AdminAuthScreen> {
         .slideY(begin: 0.2, end: 0, delay: 800.ms);
   }
 }
+

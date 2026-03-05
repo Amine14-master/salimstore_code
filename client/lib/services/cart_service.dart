@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'server_wakeup_service.dart';
 
 class CartItem {
   final String id;
@@ -13,6 +14,7 @@ class CartItem {
   final String unit;
   final double? originalPrice; // Original price before promotion
   final double? discountPercentage; // Discount percentage if on promotion
+  final String priceUnit; // Base price unit (e.g., '1kg', '100g')
 
   CartItem({
     required this.id,
@@ -24,6 +26,7 @@ class CartItem {
     required this.unit,
     this.originalPrice,
     this.discountPercentage,
+    this.priceUnit = '1kg',
   });
 
   Map<String, dynamic> toJson() => {
@@ -36,6 +39,7 @@ class CartItem {
     'unit': unit,
     if (originalPrice != null) 'originalPrice': originalPrice,
     if (discountPercentage != null) 'discountPercentage': discountPercentage,
+    'priceUnit': priceUnit,
   };
 
   factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
@@ -52,9 +56,13 @@ class CartItem {
     discountPercentage: json['discountPercentage'] != null
         ? (json['discountPercentage'] as num).toDouble()
         : null,
+    priceUnit: json['priceUnit'] ?? '1kg',
   );
 
-  double get totalPrice => unitPrice * quantity;
+  double get totalPrice => quantity * unitPrice;
+
+  double? get totalOriginalPrice =>
+      originalPrice == null ? null : quantity * originalPrice!;
 
   bool get isOnPromotion => originalPrice != null && discountPercentage != null;
 }
@@ -101,6 +109,7 @@ class CartService {
     required String unit,
     double? originalPrice,
     double? discountPercentage,
+    String priceUnit = '1kg',
   }) async {
     final items = await getCartItems();
 
@@ -121,6 +130,7 @@ class CartService {
         unit: unit,
         originalPrice: originalPrice,
         discountPercentage: discountPercentage,
+        priceUnit: priceUnit,
       );
     } else {
       // Add new item
@@ -135,12 +145,17 @@ class CartService {
           unit: unit,
           originalPrice: originalPrice,
           discountPercentage: discountPercentage,
+          priceUnit: priceUnit,
         ),
       );
     }
 
     await _saveCart(items);
     _notifyCartChanged(items);
+
+    // Wake up Render server proactively (fire-and-forget)
+    // This ensures the server is ready when user reaches checkout
+    ServerWakeupService.wakeupServer();
   }
 
   static Future<void> updateQuantity(String itemId, double newQuantity) async {
@@ -161,6 +176,7 @@ class CartService {
           unit: existingItem.unit,
           originalPrice: existingItem.originalPrice,
           discountPercentage: existingItem.discountPercentage,
+          priceUnit: existingItem.priceUnit,
         );
       }
       await _saveCart(items);

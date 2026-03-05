@@ -8,19 +8,24 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../config/contact_support_config.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/pill_page_header.dart';
 import '../../services/auth_service.dart';
 import '../../services/address_service.dart';
 import '../../services/favorites_service.dart';
 import '../../services/locale_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../addresses_management_screen.dart';
+import '../auth_screen.dart';
 import '../tabs/favorites_tab.dart';
 
 class ProfileTab extends StatefulWidget {
-  const ProfileTab({super.key});
+  final VoidCallback? onBackToHome;
+
+  const ProfileTab({super.key, this.onBackToHome});
 
   @override
   State<ProfileTab> createState() => _ProfileTabState();
@@ -211,18 +216,10 @@ class _ProfileTabState extends State<ProfileTab> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    height: 120,
-                    child: Lottie.network(
-                      'https://assets4.lottiefiles.com/packages/lf20_xlkxtmul.json',
-                      repeat: true,
-                      frameRate: FrameRate.max,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.camera_enhance_rounded,
-                        size: 64,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ),
+                  const Icon(
+                    Icons.camera_enhance_rounded,
+                    size: 64,
+                    color: AppTheme.primaryColor,
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -581,21 +578,11 @@ class _ProfileTabState extends State<ProfileTab> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Center(
-                          child: SizedBox(
-                            height: 110,
-                            child: Lottie.network(
-                              'https://assets3.lottiefiles.com/packages/lf20_SbRCd1.json',
-                              repeat: true,
-                              frameRate: FrameRate.max,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(
-                                    Icons.person_outline_rounded,
-                                    size: 64,
-                                    color: AppTheme.primaryColor,
-                                  ),
-                            ),
+                        const Center(
+                          child: Icon(
+                            Icons.person_outline_rounded,
+                            size: 64,
+                            color: AppTheme.primaryColor,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -817,21 +804,11 @@ class _ProfileTabState extends State<ProfileTab> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Center(
-                          child: SizedBox(
-                            height: 110,
-                            child: Lottie.network(
-                              'https://assets10.lottiefiles.com/packages/lf20_dmw3t0vg.json',
-                              repeat: true,
-                              frameRate: FrameRate.max,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(
-                                    Icons.lock_reset_rounded,
-                                    size: 64,
-                                    color: AppTheme.primaryColor,
-                                  ),
-                            ),
+                        const Center(
+                          child: Icon(
+                            Icons.lock_reset_rounded,
+                            size: 64,
+                            color: AppTheme.primaryColor,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -1261,13 +1238,25 @@ class _ProfileTabState extends State<ProfileTab> {
                                   ),
                                 ),
                               if (_isUploadingPhoto)
-                                SizedBox(
+                                Container(
                                   height: 80,
                                   width: 80,
-                                  child: Lottie.network(
-                                    'https://assets2.lottiefiles.com/packages/lf20_cyrKf2.json',
-                                    repeat: true,
-                                    frameRate: FrameRate.max,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF6366F1),
+                                        Color(0xFF8B5CF6),
+                                      ],
+                                    ),
+                                  ),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 3,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               Positioned(
@@ -1361,7 +1350,33 @@ class _ProfileTabState extends State<ProfileTab> {
                                 ],
                               ),
                               const SizedBox(height: 6),
-                              if (phone.isNotEmpty)
+                              if (email.isNotEmpty)
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.18),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.alternate_email_rounded,
+                                        size: 16,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      email,
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              if (phone.isNotEmpty) ...[
+                                const SizedBox(height: 8),
                                 Row(
                                   children: [
                                     Container(
@@ -1386,71 +1401,13 @@ class _ProfileTabState extends State<ProfileTab> {
                                     ),
                                   ],
                                 ),
-                              if (email.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.18),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.alternate_email_rounded,
-                                        size: 16,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        email,
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ],
                             ],
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 26),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: SizedBox(
-                          height: 120,
-                          child: Center(
-                            child: FractionallySizedBox(
-                              widthFactor: 0.65,
-                              child: Lottie.network(
-                                'https://assets8.lottiefiles.com/packages/lf20_5ngs2ksb.json',
-                                repeat: true,
-                                frameRate: FrameRate(60),
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(
-                                      Icons.storefront,
-                                      color: Colors.white,
-                                      size: 48,
-                                    ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -1460,34 +1417,40 @@ class _ProfileTabState extends State<ProfileTab> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ProfileQuickAction(
-                            title: 'Modifier mes infos',
-                            description: 'Nom, téléphone, email',
-                            icon: Icons.badge_rounded,
-                            lottieUrl:
-                                'https://assets8.lottiefiles.com/packages/lf20_iwmd6pyr.json',
-                            onTap: _isSavingProfile ? null : _showEditInfoSheet,
-                            isBusy: _isSavingProfile,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _ProfileQuickAction(
-                            title: 'Changer mon mot de passe',
-                            description: 'Sécurisez votre compte',
-                            icon: Icons.lock_reset_rounded,
-                            lottieUrl:
-                                'https://assets5.lottiefiles.com/packages/lf20_jcikwtux.json',
-                            onTap: _isUpdatingPassword
-                                ? null
-                                : _showChangePasswordSheet,
-                            isBusy: _isUpdatingPassword,
-                          ),
-                        ),
+                    _ProfileStatActionCard(
+                      title: 'Modifier mes infos',
+                      subtitle: 'Nom, téléphone, email',
+                      count: 0,
+                      countLabel: '',
+                      icon: Icons.badge_rounded,
+                      accentColor: AppTheme.primaryColor,
+                      gradientColors: const [
+                        Color(0xFFE6F0FF),
+                        Color(0xFFE0F7FF),
                       ],
+                      showCount: false,
+                      onTap: () async {
+                        if (_isSavingProfile) return;
+                        await _showEditInfoSheet();
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    _ProfileStatActionCard(
+                      title: 'Changer mon mot de passe',
+                      subtitle: 'Sécurisez votre compte',
+                      count: 0,
+                      countLabel: '',
+                      icon: Icons.lock_reset_rounded,
+                      accentColor: AppTheme.accentColor,
+                      gradientColors: const [
+                        Color(0xFFF3E8FF),
+                        Color(0xFFE0F2FE),
+                      ],
+                      showCount: false,
+                      onTap: () async {
+                        if (_isUpdatingPassword) return;
+                        await _showChangePasswordSheet();
+                      },
                     ),
                     const SizedBox(height: 12),
                     LayoutBuilder(
@@ -1496,7 +1459,7 @@ class _ProfileTabState extends State<ProfileTab> {
                         final cards = [
                           _ProfileStatActionCard(
                             title: 'Mes adresses',
-                            subtitle: 'Gérez vos destinations',
+                            subtitle: 'Gérez vos lieux de livraison',
                             count: _addressCount,
                             countLabel: 'Adresses',
                             icon: Icons.location_on_rounded,
@@ -1505,8 +1468,6 @@ class _ProfileTabState extends State<ProfileTab> {
                               Color(0xFFE6F0FF),
                               Color(0xFFECFFF6),
                             ],
-                            lottieUrl:
-                                'https://assets10.lottiefiles.com/packages/lf20_vf27zxnv.json',
                             onTap: () async {
                               await Navigator.push(
                                 context,
@@ -1530,8 +1491,6 @@ class _ProfileTabState extends State<ProfileTab> {
                               Color(0xFFEFF4FF),
                               Color(0xFFF9EDFF),
                             ],
-                            lottieUrl:
-                                'https://assets9.lottiefiles.com/packages/lf20_1idqu1m6.json',
                             onTap: () async {
                               await Navigator.push(
                                 context,
@@ -1565,11 +1524,176 @@ class _ProfileTabState extends State<ProfileTab> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    _ProfileMenuItem(
-                      icon: Icons.support_agent,
-                      title: 'Support et contact',
-                      subtitle: 'Notre équipe répond rapidement',
-                      onTap: () => _showSupportDialog(context),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFF8FBFF), Color(0xFFE7F0FF)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor.withOpacity(
+                                    0.12,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.support_agent,
+                                  color: AppTheme.primaryColor,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Text(
+                                  'Support et contact',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Column(
+                            children: [
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    final uri = Uri(
+                                      scheme: 'tel',
+                                      path: '+213778029965',
+                                    );
+                                    final ok = await launchUrl(uri);
+                                    if (!context.mounted) return;
+                                    if (!ok) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Impossible d`ouvrir l\'application téléphone.',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  icon: const Icon(Icons.phone_rounded),
+                                  label: const Text('Appeler'),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    final uri = Uri.parse(
+                                      'https://livriyes.app',
+                                    );
+                                    final ok = await launchUrl(
+                                      uri,
+                                      mode: LaunchMode.externalApplication,
+                                    );
+                                    if (!context.mounted) return;
+                                    if (!ok) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Impossible d\'ouvrir le site web.',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  icon: const Icon(Icons.language_rounded),
+                                  label: const Text('Site Web'),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    final uri =
+                                        ContactSupportConfig.buildSupportEmailUri();
+                                    final ok = await launchUrl(
+                                      uri,
+                                      mode: LaunchMode.externalApplication,
+                                    );
+                                    if (!context.mounted) return;
+                                    if (!ok) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Impossible d\'ouvrir l\'application mail.',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  icon: const Icon(
+                                    Icons.alternate_email_rounded,
+                                  ),
+                                  label: const Text('Email'),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    final uri = Uri.parse(
+                                      'https://wa.me/213778029965',
+                                    );
+                                    final ok = await launchUrl(
+                                      uri,
+                                      mode: LaunchMode.externalApplication,
+                                    );
+                                    if (!context.mounted) return;
+                                    if (!ok) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Impossible d\'ouvrir WhatsApp.',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  icon: FaIcon(FontAwesomeIcons.whatsapp),
+                                  label: const Text('WhatsApp'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _buildLanguageSelector(localeController, l10n),
@@ -1580,13 +1704,7 @@ class _ProfileTabState extends State<ProfileTab> {
                       subtitle: 'Consulter les détails',
                       onTap: () => _showTermsDialog(context),
                     ),
-                    const SizedBox(height: 12),
-                    _ProfileMenuItem(
-                      icon: Icons.assignment_return,
-                      title: 'Politique de remboursement',
-                      subtitle: 'Comment fonctionnent nos retours',
-                      onTap: () => _showRefundPolicyDialog(context),
-                    ),
+
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
@@ -1620,6 +1738,15 @@ class _ProfileTabState extends State<ProfileTab> {
                           );
                           if (confirmed == true && mounted) {
                             await FirebaseAuth.instance.signOut();
+                            if (mounted) {
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const ClientAuthScreen(),
+                                ),
+                                (route) => false,
+                              );
+                            }
                           }
                         },
                         icon: const Icon(Icons.logout_rounded),
@@ -1765,7 +1892,9 @@ class _ProfileTabState extends State<ProfileTab> {
                         const SizedBox(width: 16),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(18),
-                          child: DecoratedBox(
+                          child: Container(
+                            height: 140,
+                            padding: const EdgeInsets.all(20),
                             decoration: const BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [Color(0xFFEEF4FF), Color(0xFFD4E6FF)],
@@ -1773,20 +1902,11 @@ class _ProfileTabState extends State<ProfileTab> {
                                 end: Alignment.bottomRight,
                               ),
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Lottie.network(
-                                'https://assets10.lottiefiles.com/packages/lf20_t24tpvcu.json',
-                                height: 160,
-                                repeat: true,
-                                frameRate: FrameRate.max,
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(
-                                      Icons.support_agent,
-                                      size: 64,
-                                      color: AppTheme.primaryColor,
-                                    ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.support_agent,
+                                size: 64,
+                                color: AppTheme.primaryColor,
                               ),
                             ),
                           ),
@@ -1867,7 +1987,10 @@ class _ProfileTabState extends State<ProfileTab> {
                           label: const Text('Copier l\'adresse'),
                         ),
                         TextButton.icon(
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () {
+                            messageCtrl.dispose();
+                            Navigator.pop(context);
+                          },
                           icon: const Icon(Icons.close_rounded),
                           label: const Text('Fermer'),
                         ),
@@ -1880,7 +2003,10 @@ class _ProfileTabState extends State<ProfileTab> {
           ),
         ),
       ),
-    );
+    ).then((_) {
+      // Ensure controller is disposed when dialog is closed
+      messageCtrl.dispose();
+    });
   }
 
   void _showTermsDialog(BuildContext context) {
@@ -1891,92 +2017,188 @@ class _ProfileTabState extends State<ProfileTab> {
         title: const Text('Conditions d\'utilisation'),
         content: const SingleChildScrollView(
           child: Text(
-            '''En utilisant cette application, vous acceptez les conditions d'utilisation suivantes :
+            '''1. Conditions Générales d'Utilisation et de Vente (CGUV) 
 
-1. UTILISATION DE L'APPLICATION
-L'application Salim Store est destinée à faciliter l'achat de produits en ligne. Vous vous engagez à utiliser l'application de manière légale et conforme à ces conditions.
+Date d'entrée en vigueur : 01/01/2026 
 
-2. COMPTE UTILISATEUR
-Vous êtes responsable de maintenir la confidentialité de votre compte et de votre mot de passe. Vous acceptez la responsabilité de toutes les activités qui se produisent sous votre compte.
+Article 1 : Mentions Légales 
 
-3. COMMANDES ET PAIEMENTS
-Toutes les commandes sont soumises à acceptation. Les prix sont indiqués en Dinars Algériens (DA). Les paiements doivent être effectués conformément aux méthodes de paiement acceptées.
+L'application LivriYes (ci-après "l'Application") est éditée et exploitée par la société : 
 
-4. LIVRAISON
-Les délais de livraison sont indicatifs et peuvent varier. Nous nous efforçons de respecter les délais annoncés, mais ne pouvons garantir une livraison exacte.
+Dénomination sociale : LIVRIYES LLC 
 
-5. RETOURS ET REMBOURSEMENTS
-Les retours sont acceptés conformément à notre politique de remboursement. Consultez cette politique pour plus de détails.
+Forme juridique : Limited Liability Company (LLC) 
 
-6. PROPRIÉTÉ INTELLECTUELLE
-Tous les contenus de l'application sont protégés par les droits de propriété intellectuelle. Toute reproduction non autorisée est interdite.
+Numéro de document : 202532904028 
 
-7. MODIFICATIONS
-Nous nous réservons le droit de modifier ces conditions à tout moment. Les modifications prendront effet dès leur publication.
+Siège social : 2057 HARWITCH RD, UPPER ARLINGTON, OH 43221, USA. 
 
-8. LIMITATION DE RESPONSABILITÉ
-Dans les limites permises par la loi, Salim Store ne sera pas responsable des dommages indirects résultant de l'utilisation de l'application.''',
+Article 2 : Objet 
+
+Les présentes conditions régissent la vente directe de produits et les services de livraison proposés par LIVRIYES LLC via l'Application. Contrairement à une place de marché, LIVRIYES LLC est le vendeur direct des produits présentés ; il n'y a pas d'intermédiaire tiers (commerçants). 
+
+Article 3 : Produits et Disponibilité 
+
+Offre : Les produits régis par les présentes sont ceux qui figurent dans l'Application au jour de la consultation par le client. 
+
+Gestion des stocks : Les produits sont gérés directement par nos soins. En cas d'indisponibilité d'un produit après passation de la commande, la politique de remplacement (voir Politique de Remplacement) s'applique immédiatement. Aucune annulation sèche n'est effectuée. 
+
+Article 4 : Commande et Paiement 
+
+Validation : La commande est ferme et définitive dès la validation du paiement ou la confirmation de la commande (si paiement à la livraison). 
+
+Modification : Une fois la commande préparée par nos équipes, aucune modification n'est acceptée par le client. 
+
+Prix : Les prix sont indiqués en devise locale et incluent les taxes applicables. Les frais de livraison sont ajoutés au total avant validation. 
+
+Article 5 : Livraison 
+
+Responsabilité : LIVRIYES LLC assure la livraison à l'adresse indiquée. Le client doit s'assurer de l'exactitude des coordonnées. 
+
+Absence : En cas d'absence du client lors de la livraison, la commande sera retournée à l'entrepôt. Des frais de relivraison pourront être appliqués. 
+
+Article 6 : Droit Applicable 
+
+Les présentes conditions sont régies par les lois de l'État de l'Ohio (USA), lieu d'enregistrement de la société, sans préjudice des règles impératives de protection des consommateurs du pays de livraison.  
+
+ 
+Contact :  
+
+Email : contact@livriyes.app  
+
+Téléphone : +213778029965  
+
+Forme 
+
+2. Politique de Remplacement et de Gestion des Commandes 
+
+Date d'entrée en vigueur : 01/01/2026 
+
+IMPORTANT : La société LIVRIYES LLC applique une politique de non-remboursement monétaire. En validant une commande sur l'Application, le client accepte les conditions suivantes concernant les indisponibilités ou les problèmes de commande. 
+
+1. Absence de Remboursement 
+
+Aucun remboursement (en espèces, virement ou retour carte bancaire) n'est effectué, que ce soit pour une annulation client, une erreur de commande ou une indisponibilité produit. Toutes les ventes sont finales. 
+
+2. Gestion des produits indisponibles (Rupture de stock) 
+
+Si un produit commandé se révèle indisponible au moment de la préparation, deux solutions sont appliquées, au choix de LIVRIYES LLC ou en accord avec le client : 
+
+Option A - Remplacement : Le produit manquant est remplacé par un article de qualité et de prix équivalents ou supérieurs (sans surcoût pour le client). 
+
+Option B - Enregistrement différé (Backorder) : La ligne de commande concernant l'article manquant reste "ouverte" et enregistrée dans notre système. L'article sera livré prioritairement dès son retour en stock (réapprovisionnement), sans frais de livraison supplémentaires pour cet envoi spécifique. 
+
+3. Produits défectueux ou Erreurs de préparation 
+
+En cas de réception d'un produit endommagé ou ne correspondant pas à la commande : 
+
+Le client doit signaler le problème via l'Application sous 24h avec photo à l'appui. 
+
+Après validation par notre support, LIVRIYES LLC procédera à : 
+
+L'échange immédiat du produit lors de la prochaine tournée de livraison. 
+
+OU l'enregistrement d'un crédit (avoir) sur le compte client, utilisable pour une future commande. 
+
+4. Annulation de commande 
+
+Toute commande validée ne peut être annulée par le client. Si le client refuse la livraison, les produits restent la propriété de LIVRIYES LLC et le montant de la commande reste dû ou conservé par la société. 
+ 
+Contact :  
+
+Email : contact@livriyes.app  
+
+Téléphone : +213778029965  
+
+Forme 
+
+Politique de Confidentialité 
+
+Date d'entrée en vigueur : 01/01/2026 
+
+1. Responsable du Traitement 
+
+Les données personnelles collectées via l'application LivriYes sont traitées par : 
+
+Société : LIVRIYES LLC 
+
+Siège social : 2057 HARWITCH RD, UPPER ARLINGTON, OH 43221, USA. 
+
+Contact : contact@livriyes.app 
+
+2. Données Collectées 
+
+Nous collectons uniquement les données nécessaires au bon fonctionnement du service de vente et de livraison : 
+
+Données d'identité : Nom, prénom, numéro de téléphone (obligatoire pour la livraison). 
+
+Données de livraison : Adresse postale complète, étage, code d'accès, instructions spécifiques. 
+
+Données de géolocalisation : Position GPS exacte lors de la sélection de l'adresse de livraison pour faciliter le trajet des livreurs. 
+
+Données de transaction : Historique des commandes, détails des produits achetés, montant total. 
+
+Données techniques : Adresse IP, type d'appareil, version de l'OS (pour la maintenance et la sécurité). 
+
+Données de paiement : Nous ne stockons pas les données bancaires complètes. Les paiements sont sécurisés et traités par nos prestataires de paiement certifiés. Nous conservons uniquement un jeton d'identification de transaction. 
+
+3. Finalités du Traitement 
+
+Vos données sont utilisées pour : 
+
+Exécuter le contrat : Gestion des commandes, préparation des produits par nos équipes, et livraison à votre domicile. 
+
+Service Client : Gestion des réclamations, échanges de produits ou mise en attente (backorder). 
+
+Amélioration du service : Analyse anonymisée des habitudes de commande pour optimiser nos stocks (gestion directe). 
+
+Notifications : Envoi d'étapes de commande (SMS, Push, Email). 
+
+4. Partage des Données 
+
+Vos données ne sont jamais vendues à des tiers. Elles sont partagées uniquement avec : 
+
+Le personnel de LIVRIYES LLC : Pour la préparation des commandes. 
+
+Les livreurs : Nom, téléphone et adresse sont transmis au livreur assigné uniquement le temps de la mission de livraison. 
+
+Prestataires techniques : Hébergeur de données et processeur de paiement (ex: Stripe, PayPal), soumis à des obligations strictes de confidentialité. 
+
+Autorités légales : Si requis par la loi de l'État de l'Ohio ou du pays de livraison. 
+
+5. Autorisations Spécifiques (Mobile) 
+
+L'application peut demander l'accès à certaines fonctionnalités de votre téléphone : 
+
+Position (GPS) : Pour localiser précisément l'adresse de livraison. 
+
+Notifications : Pour vous informer de l'arrivée du livreur. 
+
+Stockage/Caméra : Si vous devez envoyer une photo pour signaler un produit endommagé. 
+
+6. Sécurité des Données 
+
+Nous mettons en œuvre des mesures de sécurité techniques (chiffrement SSL/HTTPS) et organisationnelles pour protéger vos données contre l'accès non autorisé, la perte ou l'altération. Les serveurs sont sécurisés selon les standards internationaux. 
+
+7. Vos Droits 
+
+Conformément aux réglementations en vigueur, vous disposez des droits suivants : 
+
+Accès et Rectification : Vous pouvez consulter et modifier vos informations personnelles directement dans l'application. 
+
+Suppression : Vous pouvez demander la suppression de votre compte et de vos données associées en contactant le support, sous réserve des obligations légales de conservation (ex: facturation). 
+
+8. Modifications 
+
+LIVRIYES LLC se réserve le droit de modifier cette politique. Les utilisateurs seront informés des mises à jour majeures via l'application. L'utilisation continue du service après le 01/01/2026 vaut acceptation des nouvelles conditions 
+
+9. Contact :  
+
+Email : contact@livriyes.app  
+
+Téléphone : +213778029965''',
             style: TextStyle(fontSize: 14),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showRefundPolicyDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Politique de remboursement'),
-        content: const SingleChildScrollView(
-          child: Text('''POLITIQUE DE REMBOURSEMENT - SALIM STORE
-
-1. DROIT DE RÉTRACTATION
-Vous avez le droit d'annuler votre commande dans un délai de 7 jours calendaires à compter de la réception des produits, sans avoir à justifier de motif.
-
-2. CONDITIONS DE RETOUR
-Pour être éligible au remboursement :
-- Les produits doivent être retournés dans leur état d'origine
-- Les produits doivent être non ouverts et non utilisés
-- L'emballage d'origine doit être intact
-- Vous devez conserver la facture ou le reçu de commande
-
-3. PRODUITS NON REMBOURSABLES
-Certains produits ne peuvent pas être retournés pour des raisons d'hygiène ou de sécurité :
-- Produits alimentaires périssables
-- Produits personnalisés
-- Produits ayant été ouverts et utilisés
-
-4. PROCÉDURE DE RETOUR
-Pour initier un retour :
-1. Contactez notre service client par email ou téléphone
-2. Indiquez le numéro de votre commande
-3. Expliquez la raison du retour
-4. Attendez la confirmation et les instructions d'envoi
-
-5. REMBOURSEMENT
-Une fois le retour reçu et vérifié :
-- Le remboursement sera effectué dans un délai de 14 jours
-- Le remboursement sera effectué selon la méthode de paiement originale
-- Les frais de livraison initiaux ne sont pas remboursables sauf en cas d'erreur de notre part
-
-6. PRODUITS DÉFECTUEUX
-En cas de produit défectueux ou non conforme :
-- Contactez-nous immédiatement
-- Nous organiserons l'échange ou le remboursement
-- Les frais de retour sont à notre charge
-
-7. CONTACT
-Pour toute question concernant les retours :
-📧 Email: support@salimstore.com
-📞 Téléphone: +213 XXX XXX XXX''', style: TextStyle(fontSize: 14)),
         ),
         actions: [
           TextButton(
@@ -2009,7 +2231,6 @@ Pour toute question concernant les retours :
             label: label,
             subtitle: subtitle,
             selected: selected,
-            lottieAsset: 'lib/assets/animations/language_switch.json',
             onTap: () async {
               await onTap();
               if (!mounted) return;
@@ -2151,7 +2372,6 @@ Widget profileQuickAction({
   required String title,
   required String description,
   required IconData icon,
-  required String lottieUrl,
   Future<void> Function()? onTap,
   required bool isBusy,
 }) {
@@ -2162,7 +2382,6 @@ Widget profileQuickAction({
     title: title,
     description: description,
     icon: icon,
-    lottieUrl: lottieUrl,
     onTap: handleTap,
     isBusy: isBusy,
   );
@@ -2173,14 +2392,12 @@ class _LanguageOptionCard extends StatelessWidget {
     required this.label,
     required this.subtitle,
     required this.selected,
-    required this.lottieAsset,
     required this.onTap,
   });
 
   final String label;
   final String subtitle;
   final bool selected;
-  final String lottieAsset;
   final VoidCallback onTap;
 
   @override
@@ -2217,13 +2434,18 @@ class _LanguageOptionCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            SizedBox(
-              width: 42,
-              height: 42,
-              child: Lottie.asset(
-                lottieAsset,
-                repeat: true,
-                fit: BoxFit.contain,
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppTheme.primaryColor.withOpacity(0.12)
+                    : Colors.grey.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.language_rounded,
+                color: AppTheme.primaryColor,
               ),
             ),
             const SizedBox(width: 12),
@@ -2354,7 +2576,6 @@ class _ProfileQuickAction extends StatelessWidget {
     required this.title,
     required this.description,
     required this.icon,
-    required this.lottieUrl,
     required this.onTap,
     this.isBusy = false,
   });
@@ -2362,7 +2583,6 @@ class _ProfileQuickAction extends StatelessWidget {
   final String title;
   final String description;
   final IconData icon;
-  final String lottieUrl;
   final VoidCallback? onTap;
   final bool isBusy;
 
@@ -2409,20 +2629,19 @@ class _ProfileQuickAction extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
-        SizedBox(
-          height: 80,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Lottie.network(
-              lottieUrl,
-              fit: BoxFit.cover,
-              repeat: true,
-              frameRate: FrameRate.max,
-              errorBuilder: (context, error, stackTrace) => Center(
-                child: Icon(icon, color: AppTheme.primaryColor, size: 32),
+        Row(
+          children: [
+            Icon(icon, color: AppTheme.primaryColor, size: 28),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                description,
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 12.5),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
+          ],
         ),
       ],
     );
@@ -2477,7 +2696,7 @@ class _ProfileStatActionCard extends StatelessWidget {
     required this.icon,
     required this.accentColor,
     required this.gradientColors,
-    required this.lottieUrl,
+    this.showCount = true,
     required this.onTap,
   });
 
@@ -2488,12 +2707,12 @@ class _ProfileStatActionCard extends StatelessWidget {
   final IconData icon;
   final Color accentColor;
   final List<Color> gradientColors;
-  final String lottieUrl;
+  final bool showCount;
   final Future<void> Function() onTap;
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(22);
+    final borderRadius = BorderRadius.circular(20);
     return Material(
       color: Colors.transparent,
       borderRadius: borderRadius,
@@ -2501,7 +2720,7 @@ class _ProfileStatActionCard extends StatelessWidget {
         borderRadius: borderRadius,
         onTap: () async => onTap(),
         child: Ink(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             borderRadius: borderRadius,
             gradient: LinearGradient(
@@ -2517,87 +2736,69 @@ class _ProfileStatActionCard extends StatelessWidget {
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.16),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(icon, color: accentColor),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: accentColor),
               ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 80,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: Lottie.network(
-                    lottieUrl,
-                    repeat: true,
-                    frameRate: FrameRate.max,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        Center(child: Icon(icon, color: accentColor, size: 36)),
-                  ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 18),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    count.toString().padLeft(2, '0'),
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: accentColor,
+              if (showCount) ...[
+                const SizedBox(width: 8),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      count.toString().padLeft(2, '0'),
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: accentColor,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
+                    const SizedBox(height: 2),
+                    Text(
                       countLabel,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.textSecondary,
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

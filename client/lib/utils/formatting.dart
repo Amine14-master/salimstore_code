@@ -8,13 +8,16 @@ class FormattingUtils {
 
   static final Map<String, NumberFormat> _currencyFormatters = {};
 
-  static NumberFormat _currencyFormatter(Locale locale) {
+  static NumberFormat _currencyFormatter(
+    Locale locale, {
+    bool highPrecision = false,
+  }) {
     final localeTag = locale.languageCode == 'fr' ? 'fr_FR' : 'en_US';
-    final key = '$localeTag|€|dynamic';
+    final key = '$localeTag|€|${highPrecision ? 'high' : 'std'}';
     return _currencyFormatters.putIfAbsent(key, () {
       final formatter = NumberFormat.currency(locale: localeTag, symbol: '€');
       formatter.minimumFractionDigits = 0;
-      formatter.maximumFractionDigits = 3;
+      formatter.maximumFractionDigits = highPrecision ? 6 : 2;
       return formatter;
     });
   }
@@ -24,7 +27,12 @@ class FormattingUtils {
   }
 
   static String formatPriceWithLocale(double price, Locale locale) {
-    final formatted = _currencyFormatter(locale).format(price);
+    // Use high precision for very small non-zero numbers
+    final useHighPrecision = price.abs() > 0 && price.abs() < 0.01;
+    final formatted = _currencyFormatter(
+      locale,
+      highPrecision: useHighPrecision,
+    ).format(price);
     return formatted.replaceAll('\u00A0', ' ');
   }
 
@@ -40,7 +48,7 @@ class FormattingUtils {
     if (quantity % 1 == 0) {
       return quantity.toInt().toString();
     }
-    final formatted = quantity.toStringAsFixed(2);
+    final formatted = quantity.toString();
     return formatted
         .replaceFirst(RegExp(r'0+$'), '')
         .replaceFirst(RegExp(r'\.$'), '');

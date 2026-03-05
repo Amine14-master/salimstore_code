@@ -168,8 +168,9 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
       final ordersFuture = _ordersRef.get();
       final productsFuture = _productsRef.get();
       final categoriesFuture = _categoriesRef.get();
-      final usersFuture =
-          FirebaseFirestore.instance.collection('clients').get();
+      final usersFuture = FirebaseFirestore.instance
+          .collection('clients')
+          .get();
 
       final ordersSnapshot = await ordersFuture;
       final productsSnapshot = await productsFuture;
@@ -742,17 +743,17 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
           const SizedBox(height: 20),
           _buildStatRow(
             'Total des revenus',
-            '${(_stats['totalRevenue'] ?? 0.0).toStringAsFixed(0)} €',
+            '${(_stats['totalRevenue'] ?? 0.0).toString()} €',
           ),
           const Divider(),
           _buildStatRow(
             'Aujourd\'hui',
-            '${(_stats['todayRevenue'] ?? 0.0).toStringAsFixed(0)} €',
+            '${(_stats['todayRevenue'] ?? 0.0).toString()} €',
           ),
           const Divider(),
           _buildStatRow(
             'Ce mois',
-            '${(_stats['thisMonthRevenue'] ?? 0.0).toStringAsFixed(0)} €',
+            '${(_stats['thisMonthRevenue'] ?? 0.0).toString()} €',
           ),
         ],
       ),
@@ -976,7 +977,7 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
                     ),
                   ),
                   Text(
-                    '${(product['revenue'] ?? 0.0).toStringAsFixed(0)} €',
+                    '${(product['revenue'] ?? 0.0).toString()} €',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppTheme.successColor,

@@ -65,105 +65,15 @@ class _AddressesManagementScreenState extends State<AddressesManagementScreen> {
   }
 
   Future<void> _editAddress(Map<String, dynamic> address) async {
-    final labelController = TextEditingController(text: address['label'] ?? '');
-    final fullAddressController = TextEditingController(
-      text: address['fullAddress'] ?? '',
-    );
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.edit_location_alt, color: AppTheme.primaryColor),
-            const SizedBox(width: 12),
-            const Expanded(child: Text('Modifier l\'adresse')),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: labelController,
-                decoration: InputDecoration(
-                  labelText: 'Nom de l\'adresse',
-                  prefixIcon: const Icon(Icons.label_outline),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: fullAddressController,
-                decoration: InputDecoration(
-                  labelText: 'Adresse complète',
-                  prefixIcon: const Icon(Icons.location_on),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (labelController.text.trim().isEmpty ||
-                  fullAddressController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Veuillez remplir tous les champs'),
-                    backgroundColor: AppTheme.errorColor,
-                  ),
-                );
-                return;
-              }
-              Navigator.pop(context, true);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-            ),
-            child: const Text('Enregistrer'),
-          ),
-        ],
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddressPickerScreen(existingAddress: address),
       ),
     );
 
     if (result == true) {
-      try {
-        await AddressService.updateAddress(address['id'], {
-          'label': labelController.text.trim(),
-          'fullAddress': fullAddressController.text.trim(),
-        });
-        await _loadAddresses();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Adresse mise à jour'),
-              backgroundColor: AppTheme.successColor,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erreur: ${e.toString()}'),
-              backgroundColor: AppTheme.errorColor,
-            ),
-          );
-        }
-      }
+      await _loadAddresses();
     }
   }
 
@@ -346,72 +256,113 @@ class _AddressesManagementScreenState extends State<AddressesManagementScreen> {
                                 ),
                               ],
                             ),
-                            child: ListTile(
-                              leading: Icon(
-                                Icons.location_on,
-                                color: isDefault
-                                    ? AppTheme.primaryColor
-                                    : AppTheme.textSecondary,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
                               ),
-                              title: Text(
-                                address['label'] ?? 'Adresse',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: isDefault
-                                      ? AppTheme.primaryColor
-                                      : AppTheme.textPrimary,
-                                ),
-                              ),
-                              subtitle: Text(
-                                address['fullAddress'] ?? '',
-                                style: TextStyle(color: AppTheme.textSecondary),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (isDefault)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primaryColor
-                                            .withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        'Par défaut',
-                                        style: TextStyle(
-                                          color: AppTheme.primaryColor,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  IconButton(
-                                    icon: const Icon(Icons.edit_outlined),
-                                    onPressed: () => _editAddress(address),
-                                    tooltip: 'Modifier',
-                                    color: AppTheme.primaryColor,
+                                  Icon(
+                                    Icons.location_on,
+                                    color: isDefault
+                                        ? AppTheme.primaryColor
+                                        : AppTheme.textSecondary,
                                   ),
-                                  if (!isDefault)
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.check_circle_outline,
-                                      ),
-                                      onPressed: () => _setAsDefault(
-                                        address['id'],
-                                        address['fullAddress'] ?? '',
-                                      ),
-                                      tooltip: 'Définir par défaut',
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          address['label'] ?? 'Adresse',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            color: isDefault
+                                                ? AppTheme.primaryColor
+                                                : AppTheme.textPrimary,
+                                            fontSize: 15,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          address['fullAddress'] ?? '',
+                                          style: TextStyle(
+                                            color: AppTheme.textSecondary,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          mainAxisSize: MainAxisSize.max,
+                                          children: [
+                                            if (isDefault)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.primaryColor
+                                                      .withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Text(
+                                                  'Par défaut',
+                                                  style: TextStyle(
+                                                    color:
+                                                        AppTheme.primaryColor,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            if (isDefault)
+                                              const SizedBox(width: 8),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.edit_outlined,
+                                                size: 20,
+                                              ),
+                                              onPressed: () =>
+                                                  _editAddress(address),
+                                              tooltip: 'Modifier',
+                                              color: AppTheme.primaryColor,
+                                            ),
+                                            if (!isDefault)
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.check_circle_outline,
+                                                  size: 20,
+                                                ),
+                                                onPressed: () => _setAsDefault(
+                                                  address['id'],
+                                                  address['fullAddress'] ?? '',
+                                                ),
+                                                tooltip: 'Définir par défaut',
+                                              ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.delete_outline,
+                                                size: 20,
+                                              ),
+                                              onPressed: () =>
+                                                  _deleteAddress(address['id']),
+                                              tooltip: 'Supprimer',
+                                              color: AppTheme.errorColor,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline),
-                                    onPressed: () =>
-                                        _deleteAddress(address['id']),
-                                    tooltip: 'Supprimer',
-                                    color: AppTheme.errorColor,
                                   ),
                                 ],
                               ),

@@ -1,18 +1,26 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:lottie/lottie.dart';
 import 'package:shimmer/shimmer.dart';
-import '../../theme/app_theme.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/cart_service.dart';
-import '../../services/order_service.dart';
+import '../../theme/app_theme.dart';
+import '../../utils/formatting.dart';
+import '../../utils/pricing_utils.dart';
+import '../product_detail_screen.dart';
+
 import '../../services/address_service.dart';
 import '../../services/city_service.dart';
 import '../../services/wilaya_geo_service.dart';
-import '../product_detail_screen.dart';
-import '../../services/realtime_database_service.dart';
 import '../addresses_management_screen.dart';
-import '../../utils/formatting.dart';
+import '../receivers_management_screen.dart';
+import '../../services/receiver_service.dart';
+import '../../services/realtime_database_service.dart';
+
+import '../../widgets/pill_page_header.dart';
+import '../paypal_checkout_screen.dart';
+import '../../services/server_wakeup_service.dart';
 
 class ParsedDeliveryContext {
   final String rawAddress;
@@ -51,17 +59,18 @@ class DeliveryFeeResult {
 }
 
 class CartTab extends StatefulWidget {
-  const CartTab({super.key});
+  final VoidCallback? onBackToHome;
+
+  const CartTab({super.key, this.onBackToHome});
 
   @override
   State<CartTab> createState() => _CartTabState();
 }
 
 class _CartTabState extends State<CartTab> {
-  static const double _expressDeliveryFee = 3.0;
-  static const double _bejaiaCityDeliveryFee = 1.5;
-  static const double _bejaiaCommuneDeliveryFee = 3.99;
-  static const double _otherWilayaDeliveryFee = 8.99;
+  static const double _expressDeliveryTotalCost = 25.0;
+  double _bejaiaFee = 3.49;
+  double _otherWilayaFee = 8.99;
 
   static const Set<String> _allowedWilayaCodes = {'06', '15', '18', '19', '34'};
   static const Map<String, String> _wilayaDisplayNames = {
@@ -86,12 +95,15 @@ class _CartTabState extends State<CartTab> {
   bool _showTipOptions = false;
   bool _deliveryAvailable = true;
   String? _resolvedWilayaName;
-  String? _resolvedWilayaCode;
+
   String? _resolvedCommuneName;
-  ParsedDeliveryContext? _deliveryContext;
+
   StreamSubscription<List<CartItem>>? _cartSubscription;
   StreamSubscription<Map<String, dynamic>?>? _defaultAddressSubscription;
+  StreamSubscription<Map<String, dynamic>>? _pricesSubscription;
   final FocusNode _customTipFocusNode = FocusNode();
+  String? _receiverName;
+  String? _receiverPhone;
 
   ParsedDeliveryContext _parseAddress(
     Map<String, dynamic> sourceAddress,
@@ -175,13 +187,10 @@ class _CartTabState extends State<CartTab> {
 
     double fee;
     if (wilayaCode == '06') {
-      final isBejaiaCity = _isBejaiaCity(
-        context.communeName,
-        context.simplifiedAddress,
-      );
-      fee = isBejaiaCity ? _bejaiaCityDeliveryFee : _bejaiaCommuneDeliveryFee;
+      // Use the dynamic _bejaiaFee for any location in Bejaia
+      fee = _bejaiaFee;
     } else {
-      fee = _otherWilayaDeliveryFee;
+      fee = _otherWilayaFee;
     }
 
     final displayWilaya = _wilayaDisplayNames[wilayaCode] ?? context.wilayaName;
@@ -316,12 +325,6 @@ class _CartTabState extends State<CartTab> {
     return null;
   }
 
-  bool _isBejaiaCity(String? communeName, String simplifiedAddress) {
-    final simplifiedCommune = communeName != null ? _simplify(communeName) : '';
-    return simplifiedCommune.contains('bejaia') ||
-        simplifiedAddress.contains('bejaia');
-  }
-
   double? _parseCoordinate(dynamic value) {
     if (value == null) return null;
     if (value is double) return value;
@@ -349,21 +352,43 @@ class _CartTabState extends State<CartTab> {
     super.initState();
     _loadCart();
     _loadDeliveryAddress();
+    _loadReceiverFromPrefs();
     _listenToDefaultAddress();
     // Listen for cart changes
     _cartSubscription = CartService.cartStream().listen((items) {
       if (mounted) {
         setState(() {
           _cartItems = items;
+          _refreshExpressSelection();
         });
       }
     });
+
+    // Listen for delivery prices changes
+    _pricesSubscription = RealtimeDatabaseService.deliveryPricesStream().listen(
+      (prices) {
+        if (mounted) {
+          setState(() {
+            _bejaiaFee = (prices['bejaiaCityFee'] as num).toDouble();
+            _otherWilayaFee = (prices['otherWilayaFee'] as num).toDouble();
+            // Re-calculate fee if address is already selected
+            if (_selectedAddress != null) {
+              _updateDeliveryContext(_selectedAddress!);
+            }
+          });
+        }
+      },
+    );
+
+    // Proactively wake up server when user opens cart
+    ServerWakeupService.wakeupServer();
   }
 
   @override
   void dispose() {
     _cartSubscription?.cancel();
     _defaultAddressSubscription?.cancel();
+    _pricesSubscription?.cancel();
     _customTipController.dispose();
     _customTipFocusNode.dispose();
     super.dispose();
@@ -381,7 +406,7 @@ class _CartTabState extends State<CartTab> {
         );
       });
     } catch (e) {
-      print('Error loading address: $e');
+      debugPrint('Error loading address: $e');
     }
   }
 
@@ -403,6 +428,340 @@ class _CartTabState extends State<CartTab> {
     });
   }
 
+  Future<void> _loadReceiverFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _receiverName = prefs.getString('receiver_name');
+      _receiverPhone = prefs.getString('receiver_phone');
+    });
+  }
+
+  Future<void> _saveReceiverToPrefs(String? name, String? phone) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (name != null) {
+      await prefs.setString('receiver_name', name);
+    }
+    if (phone != null) {
+      await prefs.setString('receiver_phone', phone);
+    }
+  }
+
+  Future<void> _showReceiverSheet() async {
+    final nameCtrl = TextEditingController(text: _receiverName ?? '');
+    final phoneCtrl = TextEditingController(text: _receiverPhone ?? '');
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: const [
+                    Icon(Icons.person_rounded, color: AppTheme.primaryColor),
+                    SizedBox(width: 8),
+                    Text(
+                      'Destinataire de la commande',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameCtrl,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: 'Nom complet',
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: 'Téléphone',
+                    prefixIcon: const Icon(Icons.phone),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Annuler'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () async {
+                          final enteredName = nameCtrl.text.trim();
+                          final digitsOnly = phoneCtrl.text.replaceAll(
+                            RegExp(r'\D'),
+                            '',
+                          );
+                          if (digitsOnly.length != 10) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Le numéro doit contenir exactement 10 chiffres.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+                          setState(() {
+                            _receiverName = enteredName;
+                            _receiverPhone = digitsOnly;
+                          });
+                          await _saveReceiverToPrefs(
+                            _receiverName,
+                            _receiverPhone,
+                          );
+                          if (mounted) Navigator.pop(context);
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                        ),
+                        child: const Text('Enregistrer'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showReceiverPicker() async {
+    final saved = await ReceiverService.getReceivers();
+
+    if (saved.isEmpty) {
+      await _showReceiverSheet();
+      return;
+    }
+
+    if (!mounted) return;
+
+    await showModalBottomSheet<Map<String, String>?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: const [
+                    Icon(Icons.group_rounded, color: AppTheme.primaryColor),
+                    SizedBox(width: 8),
+                    Text(
+                      'Choisir un destinataire',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: saved.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) {
+                      final r = saved[i];
+                      return InkWell(
+                        onTap: () {
+                          Navigator.pop(context, {
+                            'name': (r['name'] ?? '').toString(),
+                            'phone': (r['phone'] ?? '').toString(),
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor.withValues(
+                                    alpha: 0.12,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.person,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      (r['name'] ?? '').toString(),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      (r['phone'] ?? '').toString(),
+                                      style: const TextStyle(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.check_circle_outline,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ReceiversManagementScreen(),
+                            ),
+                          );
+                          if (!mounted) return;
+                          // After managing, return to the root (home page)
+                          Navigator.of(
+                            context,
+                          ).popUntil((route) => route.isFirst);
+                        },
+                        icon: const Icon(Icons.group_add_rounded),
+                        label: const Text('Gérer'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                        ),
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          await _showReceiverSheet();
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Ajouter'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ).then((selected) async {
+      if (selected != null) {
+        setState(() {
+          _receiverName = selected['name'];
+          _receiverPhone = selected['phone'];
+        });
+        await _saveReceiverToPrefs(_receiverName, _receiverPhone);
+      }
+    });
+  }
+
   void _applySelectedAddress(Map<String, dynamic>? address) {
     _selectedAddress = address;
     if (_selectedAddress != null) {
@@ -410,9 +769,9 @@ class _CartTabState extends State<CartTab> {
     }
   }
 
-  void _updateDeliveryContext(Map<String, dynamic> address) {
-    unawaited(_ensureCityDataLoaded());
-    unawaited(WilayaGeoService.ensureLoaded());
+  Future<void> _updateDeliveryContext(Map<String, dynamic> address) async {
+    await _ensureCityDataLoaded();
+    await WilayaGeoService.ensureLoaded();
 
     final fullAddress = address['fullAddress']?.toString() ?? '';
     final wilayaFromAddress = address['wilaya']?.toString();
@@ -426,10 +785,11 @@ class _CartTabState extends State<CartTab> {
     );
     final feeInfo = _resolveDeliveryFee(parsed);
 
+    if (!mounted) return;
+
     setState(() {
-      _deliveryContext = parsed;
       _resolvedWilayaName = feeInfo.wilayaName;
-      _resolvedWilayaCode = feeInfo.wilayaCode;
+
       _resolvedCommuneName = feeInfo.communeName;
       _deliveryFee = feeInfo.fee;
       _deliveryAvailable = feeInfo.isAllowed;
@@ -441,6 +801,8 @@ class _CartTabState extends State<CartTab> {
       if (!_deliveryAvailable) {
         _expressDelivery = false;
       }
+
+      _refreshExpressSelection();
     });
   }
 
@@ -450,6 +812,7 @@ class _CartTabState extends State<CartTab> {
     setState(() {
       _cartItems = items;
       _loading = false;
+      _refreshExpressSelection();
     });
   }
 
@@ -459,10 +822,7 @@ class _CartTabState extends State<CartTab> {
   }
 
   double _getIncrementStep(String unit) {
-    if (unit.toLowerCase().contains('kg')) return 0.5;
-    if (unit.toLowerCase().contains('g')) return 100.0;
-    if (unit.toLowerCase().contains('l')) return 0.5;
-    return 1.0;
+    return PricingUtils.getQuantityStep(unit);
   }
 
   String _formatQuantity(double qty, String unit) {
@@ -477,6 +837,7 @@ class _CartTabState extends State<CartTab> {
 
     setState(() {
       _cartItems = _cartItems.where((item) => item.id != itemId).toList();
+      _refreshExpressSelection();
     });
 
     try {
@@ -502,18 +863,382 @@ class _CartTabState extends State<CartTab> {
     }
   }
 
+  Future<void> _showOrderConfirmationDialog() async {
+    if (_cartItems.isEmpty || _selectedAddress == null || !_deliveryAvailable) {
+      return;
+    }
+
+    final cartTotal = _getCartTotal();
+    final expressFee = _expressDelivery && _isExpressAvailable(cartTotal)
+        ? (_expressDeliveryTotalCost - _deliveryFee)
+        : 0.0;
+    final finalTotal = _getFinalTotal();
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 18,
+            vertical: 24,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: const LinearGradient(
+                colors: [Colors.white, Color(0xFFF7F8FC)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 18),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.receipt_long_rounded,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Confirmer la commande',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Vérifiez le récapitulatif avant de valider.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppTheme.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Produits',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textPrimary,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        ..._cartItems.map(
+                          (item) => Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '${item.productName} x ${_formatQuantity(item.quantity, item.unit)}',
+                                    style: TextStyle(
+                                      color: AppTheme.textPrimary,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  _formatPrice(item.totalPrice),
+                                  style: TextStyle(
+                                    color: AppTheme.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Adresse de livraison',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textPrimary,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatConfirmationAddressLine(),
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                            height: 1.3,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Destinataire',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textPrimary,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          (_receiverName?.isNotEmpty == true ||
+                                  _receiverPhone?.isNotEmpty == true)
+                              ? '${_receiverName ?? ''}${(_receiverName?.isNotEmpty == true && _receiverPhone?.isNotEmpty == true) ? ' • ' : ''}${_receiverPhone ?? ''}'
+                              : 'Non spécifié',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Récapitulatif',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textPrimary,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Sous-total',
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _formatPrice(cartTotal),
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Livraison',
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _formatPrice(_deliveryFee),
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (expressFee > 0) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Livraison Express (48h)',
+                                  style: TextStyle(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                _formatPrice(expressFee),
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        if (_tip > 0) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Pourboire',
+                                  style: TextStyle(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                _formatPrice(_tip),
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Total à payer',
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _formatPrice(finalTotal),
+                              style: TextStyle(
+                                color: AppTheme.primaryColor,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: AppTheme.textSecondary.withValues(
+                                alpha: 0.4,
+                              ),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Annuler'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            Navigator.of(context).pop();
+                            await _createOrder();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text(
+                            'Confirmer',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatConfirmationAddressLine() {
+    if (_selectedAddress == null) return '';
+
+    final label = (_selectedAddress!['label'] ?? '').toString().trim();
+
+    // Only show the name the user chose for this address.
+    if (label.isNotEmpty) return label;
+
+    // Fallback: very short representation if label is missing.
+    final fallback = _selectedAddress!['fullAddress']?.toString().trim();
+    if (fallback != null && fallback.isNotEmpty) return fallback;
+
+    return '';
+  }
+
   double _getCartTotal() {
     return _cartItems.fold<double>(0, (sum, item) => sum + item.totalPrice);
   }
 
   bool _isExpressAvailable(double cartTotal) {
-    return _deliveryAvailable && !_isBejaia && cartTotal >= 25.0;
+    // Express allowed only if delivery is available, not in Béjaïa,
+    // and (cart + tip) is >= 25€
+    final baseTotal = cartTotal + _tip;
+    return _deliveryAvailable && !_isBejaia && baseTotal >= 25.0;
+  }
+
+  void _refreshExpressSelection() {
+    final cartTotal = _getCartTotal();
+    final canUseExpress = _isExpressAvailable(cartTotal);
+    if (!canUseExpress && _expressDelivery) {
+      _expressDelivery = false;
+    }
   }
 
   double _getFinalTotal() {
     final cartTotal = _getCartTotal();
     final expressFee = _expressDelivery && _isExpressAvailable(cartTotal)
-        ? _expressDeliveryFee
+        ? (_expressDeliveryTotalCost - _deliveryFee)
         : 0.0;
     return cartTotal + _deliveryFee + expressFee + _tip;
   }
@@ -551,11 +1276,14 @@ class _CartTabState extends State<CartTab> {
           _customTipController.clear();
           _showTipOptions = true;
         } else if (mode == 'custom') {
+          // Always show tip options when custom is selected
           _showTipOptions = true;
           if (_customTipController.text.isEmpty) {
             _tip = 0.0;
           }
         }
+
+        _refreshExpressSelection();
       }
     });
 
@@ -571,12 +1299,18 @@ class _CartTabState extends State<CartTab> {
 
   void _updateCustomTip(String value) {
     if (value.isEmpty) {
-      setState(() => _tip = 0.0);
+      setState(() {
+        _tip = 0.0;
+        _refreshExpressSelection();
+      });
       return;
     }
     final tipValue = double.tryParse(value) ?? 0.0;
     if (tipValue >= 0) {
-      setState(() => _tip = tipValue);
+      setState(() {
+        _tip = tipValue;
+        _refreshExpressSelection();
+      });
     }
   }
 
@@ -584,6 +1318,7 @@ class _CartTabState extends State<CartTab> {
     final addresses = await AddressService.getAddresses();
 
     if (addresses.isEmpty) {
+      if (!mounted) return;
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
@@ -596,6 +1331,7 @@ class _CartTabState extends State<CartTab> {
       return;
     }
 
+    if (!mounted) return;
     final selected = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => AlertDialog(
@@ -631,10 +1367,10 @@ class _CartTabState extends State<CartTab> {
                     padding: const EdgeInsets.all(16),
                     margin: const EdgeInsets.only(top: 8),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.05),
+                      color: AppTheme.primaryColor.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: AppTheme.primaryColor.withOpacity(0.3),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Row(
@@ -668,7 +1404,7 @@ class _CartTabState extends State<CartTab> {
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? AppTheme.primaryColor.withOpacity(0.1)
+                        ? AppTheme.primaryColor.withValues(alpha: 0.1)
                         : Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
@@ -711,8 +1447,8 @@ class _CartTabState extends State<CartTab> {
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.primaryColor.withOpacity(
-                                        0.1,
+                                      color: AppTheme.primaryColor.withValues(
+                                        alpha: 0.1,
                                       ),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
@@ -801,7 +1537,7 @@ class _CartTabState extends State<CartTab> {
     try {
       final cartTotal = _getCartTotal();
       final expressFee = _expressDelivery && _isExpressAvailable(cartTotal)
-          ? _expressDeliveryFee
+          ? (_expressDeliveryTotalCost - _deliveryFee)
           : 0.0;
       final finalTotal = _getFinalTotal();
       final deliveryAddress =
@@ -809,37 +1545,65 @@ class _CartTabState extends State<CartTab> {
       final deliveryLabel = _selectedAddress!['label']?.toString();
       final wilaya =
           _resolvedWilayaName ?? _selectedAddress!['wilaya']?.toString() ?? '';
+      final wilayaCode = _selectedAddress!['wilayaCode']?.toString() ?? '06';
 
-      final orderId = await OrderService.createOrder(
-        items: _cartItems,
-        cartTotal: cartTotal,
-        deliveryFee: _deliveryFee,
-        expressDelivery: _expressDelivery,
-        expressFee: expressFee,
-        tip: _tip,
-        total: finalTotal,
-        deliveryAddress: deliveryAddress,
-        deliveryLabel: deliveryLabel,
-        wilaya: wilaya,
-        latitude: _deliveryContext?.latitude,
-        longitude: _deliveryContext?.longitude,
-      );
-
-      if (orderId != null) {
-        await CartService.clearCart();
-        _loadCart();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Commande $orderId passée avec succès!'),
-              backgroundColor: AppTheme.successColor,
-              duration: const Duration(seconds: 3),
+      // Aggressively wake up server before PayPal checkout
+      // This ensures Render server is ready and reduces payment delay
+      if (mounted) {
+        // Show a brief loading indicator
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => Center(
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'Préparation du paiement...',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
             ),
-          );
-        }
-      } else {
-        throw Exception('Impossible de créer la commande');
+          ),
+        );
+
+        // Wake up server aggressively
+        await ServerWakeupService.aggressiveWakeup();
+
+        // Close loading dialog
+        if (mounted) Navigator.of(context).pop();
+      }
+
+      // Navigate to PayPal checkout screen
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => PayPalCheckoutScreen(
+              cartItems: _cartItems,
+              cartTotal: cartTotal,
+              deliveryFee: _deliveryFee,
+              expressFee: expressFee,
+              tip: _tip,
+              finalTotal: finalTotal,
+              deliveryAddress: deliveryAddress,
+              deliveryLabel: deliveryLabel,
+              wilaya: wilaya,
+              wilayaCode: wilayaCode,
+              receiverName: _receiverName,
+              receiverPhone: _receiverPhone,
+              userId: FirebaseAuth.instance.currentUser?.uid,
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -858,55 +1622,107 @@ class _CartTabState extends State<CartTab> {
     final cartTotal = _getCartTotal();
     final finalTotal = _getFinalTotal();
     final canUseExpress = _isExpressAvailable(cartTotal);
+    final expressFee = _expressDelivery && canUseExpress
+        ? (_expressDeliveryTotalCost - _deliveryFee)
+        : 0.0;
     final hasTip = _tip > 0;
-    final canPlaceOrder = _deliveryAvailable && _selectedAddress != null;
+    final canPlaceOrder =
+        _deliveryAvailable && _selectedAddress != null && _cartItems.isNotEmpty;
 
     return Container(
       decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
       child: SafeArea(
         child: Column(
           children: [
-            // Title and Address in same line - Compact
+            PillPageHeader(title: 'Mon Panier', onBack: widget.onBackToHome),
+            const SizedBox(height: 8),
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 8),
+              padding: const EdgeInsets.fromLTRB(14, 2, 14, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Panier',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 20,
-                            ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.refresh, size: 18),
-                        onPressed: () {
-                          _loadCart();
-                          _loadDeliveryAddress();
-                        },
-                        color: AppTheme.primaryColor,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 280),
                     switchInCurve: Curves.easeOutBack,
                     switchOutCurve: Curves.easeIn,
                     child: _loading
                         ? _buildAddressPlaceholder()
-                        : _buildAddressSelectorCard(_cartItems.isNotEmpty),
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildAddressSelectorCard(_cartItems.isNotEmpty),
+                              const SizedBox(height: 8),
+                              GestureDetector(
+                                onTap: _showReceiverPicker,
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(14),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.blue.withValues(
+                                          alpha: 0.06,
+                                        ),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.withValues(
+                                            alpha: 0.12,
+                                          ),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.person,
+                                          color: Colors.blue,
+                                          size: 18,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          (_receiverName?.isNotEmpty == true ||
+                                                  _receiverPhone?.isNotEmpty ==
+                                                      true)
+                                              ? '${_receiverName ?? ''}${(_receiverName?.isNotEmpty == true && _receiverPhone?.isNotEmpty == true) ? ' • ' : ''}${_receiverPhone ?? ''}'
+                                              : 'Destinataire (nom, téléphone)',
+                                          style: TextStyle(
+                                            color: AppTheme.textPrimary,
+                                            fontWeight:
+                                                (_receiverName?.isNotEmpty ==
+                                                        true ||
+                                                    _receiverPhone
+                                                            ?.isNotEmpty ==
+                                                        true)
+                                                ? FontWeight.w600
+                                                : FontWeight.w500,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.edit,
+                                        size: 16,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
                 ],
               ),
@@ -958,22 +1774,27 @@ class _CartTabState extends State<CartTab> {
                             for (var i = 0; i < _cartItems.length; i++) ...[
                               Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.98),
-                                  borderRadius: BorderRadius.circular(14),
+                                  color: Colors.white.withValues(alpha: 0.98),
+                                  borderRadius: BorderRadius.circular(12),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: AppTheme.primaryColor.withOpacity(
-                                        0.06,
+                                      color: AppTheme.primaryColor.withValues(
+                                        alpha: 0.05,
                                       ),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 5),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
                                     ),
                                   ],
                                 ),
                                 child: ListTile(
+                                  dense: true,
+                                  visualDensity: const VisualDensity(
+                                    horizontal: -1,
+                                    vertical: -2,
+                                  ),
                                   contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 10,
+                                    horizontal: 10,
+                                    vertical: 6,
                                   ),
                                   leading: GestureDetector(
                                     onTap: () async {
@@ -984,6 +1805,7 @@ class _CartTabState extends State<CartTab> {
                                           (p) =>
                                               p.id == _cartItems[i].productId,
                                         );
+                                        if (!mounted) return;
                                         await Navigator.push(
                                           context,
                                           MaterialPageRoute(
@@ -993,9 +1815,9 @@ class _CartTabState extends State<CartTab> {
                                                 ),
                                           ),
                                         );
-                                        _loadCart();
+                                        if (mounted) _loadCart();
                                       } catch (e) {
-                                        print('Error loading product: $e');
+                                        debugPrint('Error loading product: $e');
                                       }
                                     },
                                     child: ClipRRect(
@@ -1006,15 +1828,15 @@ class _CartTabState extends State<CartTab> {
                                               .isNotEmpty
                                           ? Image.network(
                                               _cartItems[i].productImageUrl,
-                                              width: 60,
-                                              height: 60,
+                                              width: 50,
+                                              height: 50,
                                               fit: BoxFit.cover,
                                               errorBuilder: (_, __, ___) =>
                                                   Container(
-                                                    width: 52,
-                                                    height: 52,
+                                                    width: 46,
+                                                    height: 46,
                                                     color: AppTheme.accentColor
-                                                        .withOpacity(0.1),
+                                                        .withValues(alpha: 0.1),
                                                     child: const Icon(
                                                       Icons.image,
                                                       size: 30,
@@ -1022,10 +1844,10 @@ class _CartTabState extends State<CartTab> {
                                                   ),
                                             )
                                           : Container(
-                                              width: 52,
-                                              height: 52,
+                                              width: 46,
+                                              height: 46,
                                               color: AppTheme.accentColor
-                                                  .withOpacity(0.08),
+                                                  .withValues(alpha: 0.08),
                                               child: const Icon(
                                                 Icons.image,
                                                 size: 30,
@@ -1074,8 +1896,8 @@ class _CartTabState extends State<CartTab> {
                                           children: [
                                             Text(
                                               _formatPrice(
-                                                _cartItems[i].originalPrice! *
-                                                    _cartItems[i].quantity,
+                                                _cartItems[i]
+                                                    .totalOriginalPrice!,
                                               ),
                                               style: TextStyle(
                                                 color: AppTheme.textSecondary,
@@ -1107,22 +1929,24 @@ class _CartTabState extends State<CartTab> {
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 4),
                                       ],
                                       Text(
-                                        '${_formatPrice(_cartItems[i].unitPrice)} / ${_cartItems[i].unit}',
+                                        PricingUtils.formatPriceWithUnit(
+                                          _cartItems[i].unitPrice,
+                                          _cartItems[i].unit,
+                                        ),
                                         style: TextStyle(
                                           color: AppTheme.textSecondary,
                                           fontSize: 12,
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
+                                      const SizedBox(height: 6),
                                       Row(
                                         children: [
                                           Container(
                                             decoration: BoxDecoration(
                                               color: AppTheme.primaryColor
-                                                  .withOpacity(0.12),
+                                                  .withValues(alpha: 0.12),
                                               borderRadius:
                                                   BorderRadius.circular(8),
                                             ),
@@ -1166,7 +1990,25 @@ class _CartTabState extends State<CartTab> {
                                               horizontal: 10,
                                             ),
                                             child: Text(
-                                              '${_formatQuantity(_cartItems[i].quantity, _cartItems[i].unit)} ${_cartItems[i].unit}',
+                                              (_cartItems[i].unit
+                                                              .toLowerCase()
+                                                              .contains('kg') ||
+                                                          (_cartItems[i].unit
+                                                                  .toLowerCase()
+                                                                  .contains(
+                                                                    'l',
+                                                                  ) &&
+                                                              !_cartItems[i]
+                                                                  .unit
+                                                                  .toLowerCase()
+                                                                  .contains(
+                                                                    'ml',
+                                                                  ))) &&
+                                                      !RegExp(r'^\d').hasMatch(
+                                                        _cartItems[i].unit,
+                                                      )
+                                                  ? '${_formatQuantity(_cartItems[i].quantity, _cartItems[i].unit)} ${_cartItems[i].unit}'
+                                                  : '${_formatQuantity(_cartItems[i].quantity, _cartItems[i].unit)} x ${_cartItems[i].unit}',
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 13,
@@ -1176,7 +2018,7 @@ class _CartTabState extends State<CartTab> {
                                           Container(
                                             decoration: BoxDecoration(
                                               color: AppTheme.primaryColor
-                                                  .withOpacity(0.1),
+                                                  .withValues(alpha: 0.1),
                                               borderRadius:
                                                   BorderRadius.circular(8),
                                             ),
@@ -1202,6 +2044,15 @@ class _CartTabState extends State<CartTab> {
                                               color: AppTheme.primaryColor,
                                             ),
                                           ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '= ${PricingUtils.formatTotalWeight(_cartItems[i].quantity, _cartItems[i].unit)}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppTheme.successColor,
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ],
@@ -1220,6 +2071,13 @@ class _CartTabState extends State<CartTab> {
                                               fontSize: 15,
                                             ),
                                       ),
+                                      Text(
+                                        '(${_formatPrice(_cartItems[i].unitPrice)} / ${_cartItems[i].unit})',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -1235,10 +2093,14 @@ class _CartTabState extends State<CartTab> {
                               padding: const EdgeInsets.all(12),
                               margin: const EdgeInsets.only(bottom: 12),
                               decoration: BoxDecoration(
-                                color: AppTheme.errorColor.withOpacity(0.12),
+                                color: AppTheme.errorColor.withValues(
+                                  alpha: 0.12,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: AppTheme.errorColor.withOpacity(0.3),
+                                  color: AppTheme.errorColor.withValues(
+                                    alpha: 0.3,
+                                  ),
                                 ),
                               ),
                               child: Row(
@@ -1268,9 +2130,10 @@ class _CartTabState extends State<CartTab> {
                           if (_deliveryAvailable) ...[
                             Row(
                               children: [
-                                // Compact Express Delivery (only if outside Béjaïa)
-                                if (!_isBejaia) ...[
+                                // Compact Express Delivery (only if outside Béjaïa and total >= 25)
+                                if (!_isBejaia && canUseExpress) ...[
                                   Expanded(
+                                    flex: 3,
                                     child: InkWell(
                                       onTap: canUseExpress
                                           ? () => setState(
@@ -1279,7 +2142,10 @@ class _CartTabState extends State<CartTab> {
                                             )
                                           : null,
                                       child: Container(
-                                        padding: const EdgeInsets.all(12),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 12,
+                                        ),
                                         decoration: BoxDecoration(
                                           gradient: _expressDelivery
                                               ? const LinearGradient(
@@ -1299,13 +2165,13 @@ class _CartTabState extends State<CartTab> {
                                             color: _expressDelivery
                                                 ? Colors.transparent
                                                 : AppTheme.primaryColor
-                                                      .withOpacity(0.25),
+                                                      .withValues(alpha: 0.25),
                                           ),
                                           boxShadow: [
                                             BoxShadow(
                                               color: AppTheme.primaryColor
-                                                  .withOpacity(
-                                                    _expressDelivery
+                                                  .withValues(
+                                                    alpha: _expressDelivery
                                                         ? 0.25
                                                         : 0.06,
                                                   ),
@@ -1326,19 +2192,23 @@ class _CartTabState extends State<CartTab> {
                                               size: 18,
                                             ),
                                             const SizedBox(width: 8),
-                                            Text(
-                                              'Livraison Express',
-                                              style: TextStyle(
-                                                color: _expressDelivery
-                                                    ? Colors.white
-                                                    : AppTheme.primaryColor,
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 13,
+                                            Expanded(
+                                              child: Text(
+                                                'Livraison Express',
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  color: _expressDelivery
+                                                      ? Colors.white
+                                                      : AppTheme.primaryColor,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13,
+                                                ),
                                               ),
                                             ),
-                                            const Spacer(),
                                             Text(
-                                              _formatPrice(_expressDeliveryFee),
+                                              _formatPrice(
+                                                _expressDeliveryTotalCost,
+                                              ),
                                               style: TextStyle(
                                                 color: _expressDelivery
                                                     ? Colors.white
@@ -1353,19 +2223,26 @@ class _CartTabState extends State<CartTab> {
                                     ),
                                   ),
                                 ],
+                                const SizedBox(width: 8),
                                 // Compact Tip Module
                                 Expanded(
+                                  flex: 2,
                                   child: GestureDetector(
                                     onTap: () => _setTip('custom'),
                                     child: Container(
-                                      padding: const EdgeInsets.all(12),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 12,
+                                      ),
                                       decoration: BoxDecoration(
                                         gradient: _tipMode == 'custom'
                                             ? const LinearGradient(
                                                 colors: [
-                                                  AppTheme.secondaryColor,
-                                                  AppTheme.primaryColor,
+                                                  Color(0xFF10AA2E),
+                                                  Color(0xFF67DF47),
                                                 ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
                                               )
                                             : null,
                                         color: _tipMode == 'custom'
@@ -1376,13 +2253,13 @@ class _CartTabState extends State<CartTab> {
                                           color: _tipMode == 'custom'
                                               ? Colors.transparent
                                               : AppTheme.primaryColor
-                                                    .withOpacity(0.25),
+                                                    .withValues(alpha: 0.25),
                                         ),
                                         boxShadow: [
                                           BoxShadow(
                                             color: AppTheme.primaryColor
-                                                .withOpacity(
-                                                  _tipMode == 'custom'
+                                                .withValues(
+                                                  alpha: _tipMode == 'custom'
                                                       ? 0.25
                                                       : 0.06,
                                                 ),
@@ -1403,17 +2280,19 @@ class _CartTabState extends State<CartTab> {
                                             size: 18,
                                           ),
                                           const SizedBox(width: 8),
-                                          Text(
-                                            'Pourboire',
-                                            style: TextStyle(
-                                              color: _tipMode == 'custom'
-                                                  ? Colors.white
-                                                  : AppTheme.primaryColor,
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 13,
+                                          Expanded(
+                                            child: Text(
+                                              'Pourboire',
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: _tipMode == 'custom'
+                                                    ? Colors.white
+                                                    : AppTheme.primaryColor,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                              ),
                                             ),
                                           ),
-                                          const Spacer(),
                                           Text(
                                             _formatPrice(_tip),
                                             style: TextStyle(
@@ -1433,48 +2312,14 @@ class _CartTabState extends State<CartTab> {
                             ),
                             if (_tipMode == 'custom' && _showTipOptions) ...[
                               const SizedBox(height: 12),
+                              // Predefined tip buttons row
                               Padding(
-                                padding: const EdgeInsets.all(12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
                                 child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Expanded(
-                                      child: TextField(
-                                        controller: _customTipController,
-                                        focusNode: _customTipFocusNode,
-                                        decoration: InputDecoration(
-                                          labelText: 'Montant du pourboire',
-                                          labelStyle: TextStyle(
-                                            color: AppTheme.textSecondary,
-                                            fontSize: 12,
-                                          ),
-                                          focusedBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                              color: AppTheme.primaryColor,
-                                              width: 1.5,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          enabledBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                              color: AppTheme.textSecondary,
-                                              width: 1,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                        ),
-                                        style: TextStyle(
-                                          color: AppTheme.textPrimary,
-                                          fontSize: 14,
-                                        ),
-                                        keyboardType: TextInputType.number,
-                                        onChanged: _updateCustomTip,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
                                     _buildTipButton('1', '1.00 €'),
                                     const SizedBox(width: 8),
                                     _buildTipButton('2', '2.00 €'),
@@ -1483,6 +2328,54 @@ class _CartTabState extends State<CartTab> {
                                     const SizedBox(width: 8),
                                     _buildTipButton('10', '10.00 €'),
                                   ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              // Custom tip input field
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: TextField(
+                                  controller: _customTipController,
+                                  focusNode: _customTipFocusNode,
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        'Montant du pourboire personnalisé',
+                                    labelStyle: TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                    prefixIcon: Icon(
+                                      Icons.euro,
+                                      color: AppTheme.primaryColor,
+                                      size: 20,
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: AppTheme.primaryColor,
+                                        width: 1.5,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderSide: BorderSide(
+                                        color: AppTheme.textSecondary
+                                            .withValues(alpha: 0.3),
+                                        width: 1,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  style: TextStyle(
+                                    color: AppTheme.textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  keyboardType: TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                                  onChanged: _updateCustomTip,
                                 ),
                               ),
                             ],
@@ -1509,6 +2402,31 @@ class _CartTabState extends State<CartTab> {
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 4),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Dont livraison',
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  _formatPrice(_deliveryFee + expressFee),
+                                  style: TextStyle(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           if (hasTip)
                             Padding(
@@ -1542,11 +2460,13 @@ class _CartTabState extends State<CartTab> {
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             child: _buildSecurePaymentHighlight(),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 4),
                           Padding(
                             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                             child: ElevatedButton(
-                              onPressed: canPlaceOrder ? _createOrder : null,
+                              onPressed: canPlaceOrder
+                                  ? _showOrderConfirmationDialog
+                                  : null,
                               style: ElevatedButton.styleFrom(
                                 foregroundColor: Colors.white,
                                 backgroundColor: AppTheme.primaryColor,
@@ -1585,19 +2505,9 @@ class _CartTabState extends State<CartTab> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppTheme.primaryColor, AppTheme.accentColor],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryColor.withOpacity(0.12),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
-              ),
-            ],
+            border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1610,45 +2520,6 @@ class _CartTabState extends State<CartTab> {
                     'lib/assets/images/secure-paiements.png',
                     fit: BoxFit.cover,
                   ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.lock_outline,
-                      color: Colors.white.withOpacity(0.92),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Paiement 3D Secure • Vérifié en temps réel',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.92),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.verified_user,
-                      color: Colors.white.withOpacity(0.92),
-                      size: 18,
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -1679,12 +2550,12 @@ class _CartTabState extends State<CartTab> {
           border: Border.all(
             color: isSelected
                 ? Colors.transparent
-                : AppTheme.primaryColor.withOpacity(0.25),
+                : AppTheme.primaryColor.withValues(alpha: 0.25),
           ),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryColor.withOpacity(
-                isSelected ? 0.25 : 0.06,
+              color: AppTheme.primaryColor.withValues(
+                alpha: isSelected ? 0.25 : 0.06,
               ),
               blurRadius: isSelected ? 16 : 8,
               offset: const Offset(0, 6),
@@ -1706,13 +2577,13 @@ class _CartTabState extends State<CartTab> {
 
   Widget _buildAddressPlaceholder() {
     return Shimmer.fromColors(
-      baseColor: Colors.white.withOpacity(0.35),
-      highlightColor: Colors.white.withOpacity(0.75),
+      baseColor: Colors.white.withValues(alpha: 0.35),
+      highlightColor: Colors.white.withValues(alpha: 0.75),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.5),
+          color: Colors.white.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(18),
         ),
         child: Row(
@@ -1721,7 +2592,7 @@ class _CartTabState extends State<CartTab> {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.4),
+                color: Colors.white.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
@@ -1768,158 +2639,57 @@ class _CartTabState extends State<CartTab> {
 
   Widget _buildAddressSelectorCard(bool hasCart) {
     final label = _selectedAddress?['label']?.toString().trim();
-    final fullAddress = _selectedAddress?['fullAddress']?.toString().trim();
-    final isDefault = _selectedAddress?['isDefault'] == true;
 
     final displayLabel = label != null && label.isNotEmpty
         ? label
         : 'Choisissez votre adresse de livraison';
-    final displayDetails = fullAddress != null && fullAddress.isNotEmpty
-        ? fullAddress
-        : 'Gagnez du temps en ajoutant votre adresse favorite.';
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _showAddressSelector,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 240),
-        curve: Curves.easeOut,
+      child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppTheme.primaryColor, AppTheme.successColor],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(18),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryColor.withOpacity(0.25),
-              blurRadius: 22,
-              offset: const Offset(0, 14),
+              color: AppTheme.primaryColor.withValues(alpha: 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                width: 64,
-                height: 64,
-                color: Colors.white.withOpacity(0.22),
-                child: Lottie.asset(
-                  'lib/assets/animations/language_switch.json',
-                  repeat: true,
-                  fit: BoxFit.contain,
-                ),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
               ),
-            ),
-            const SizedBox(width: 18),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Adresse de livraison',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.85),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      if (isDefault)
-                        Container(
-                          margin: const EdgeInsets.only(left: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.25),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            'Par défaut',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    displayLabel,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    displayDetails,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 13,
-                      height: 1.3,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Icon(
-                        hasCart ? Icons.done_all : Icons.shopping_bag_outlined,
-                        size: 16,
-                        color: Colors.white.withOpacity(0.85),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          hasCart
-                              ? 'Touchez pour ajuster votre point de livraison'
-                              : 'Ajoutez des produits pour valider la livraison',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.85),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              child: const Icon(
+                Icons.location_on,
+                color: AppTheme.primaryColor,
+                size: 18,
               ),
             ),
             const SizedBox(width: 10),
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.3),
-              ),
-              padding: const EdgeInsets.all(6),
-              child: const Icon(
-                Icons.chevron_right,
-                color: Colors.white,
-                size: 20,
+            Expanded(
+              child: Text(
+                displayLabel,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: _selectedAddress != null
+                      ? FontWeight.w600
+                      : FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            const Icon(Icons.edit, size: 16, color: AppTheme.textSecondary),
           ],
         ),
       ),

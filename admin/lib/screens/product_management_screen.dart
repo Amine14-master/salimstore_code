@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:typed_data';
 import 'package:lottie/lottie.dart';
 import 'package:shimmer/shimmer.dart';
 import '../models/product_models.dart';
@@ -9,6 +6,7 @@ import 'category_management_screen.dart';
 import '../services/realtime_database_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/admin_search_bar.dart';
+import '../utils/pricing_utils.dart';
 // Removed categories management screen
 
 class ProductManagementScreen extends StatefulWidget {
@@ -28,8 +26,8 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
   SubCategory? _selectedSubCategory;
   bool _isLoading = true;
   String _searchQuery = '';
-  String _sortBy = 'name';
-  bool _sortAscending = true;
+  String _sortBy = 'createdAt';
+  bool _sortAscending = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -291,17 +289,18 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
         slivers: [
           // Modern App Bar
           SliverAppBar(
-            expandedHeight: isDesktop ? 112 : 96,
-            floating: false,
+            floating: true,
             pinned: true,
+            toolbarHeight: 56,
             backgroundColor: AppTheme.primaryColor,
             flexibleSpace: FlexibleSpaceBar(
+              titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
               title: Text(
                 'Gestion des Produits',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
-                  fontSize: isDesktop ? 22 : 18,
+                  fontSize: isDesktop ? 20 : 18,
                 ),
               ),
               background: Container(
@@ -996,7 +995,7 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    AppTheme.formatCurrency(product.price),
+                    '${AppTheme.formatCurrency(product.price)} / ${product.priceUnit}',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -1085,8 +1084,8 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
   final _imageUrlController = TextEditingController();
-  XFile? _pickedImage;
   List<String> _selectedUnits = [];
+  String _selectedPriceUnit = '1kg'; // Added
   bool _isLoading = false;
   List<Category> _allCategories = [];
   Map<String, List<SubCategory>> _subCategoriesByCategory = {};
@@ -1096,17 +1095,20 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   SubCategory? _selectedSubCategory;
 
   final List<String> _predefinedUnits = [
-    'kg',
-    'g',
-    'L',
-    'ml',
-    'piece',
-    'pack',
-    'box',
-    'bottle',
-    'can',
-    'bag',
+    '100g',
+    '250g',
+    '500g',
+    '1kg',
+    'unité',
+    'litre',
   ];
+
+  final List<String> _priceUnits = ['100g', '250g', '500g', '1kg', 'unité'];
+
+  List<String> _getDefaultUnits(String? categoryName) {
+    if (categoryName == null) return ['unité'];
+    return PricingUtils.getAvailableUnitsForCategory(categoryName);
+  }
 
   @override
   void initState() {
@@ -1114,33 +1116,21 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     if (widget.product != null) {
       _nameController.text = widget.product!.name;
       _descriptionController.text = widget.product!.description;
-      _priceController.text = widget.product!.price.toStringAsFixed(2);
+      _priceController.text = widget.product!.price.toString();
       _imageUrlController.text = widget.product!.imageUrl;
       _selectedUnits = List.from(widget.product!.availableUnits);
+      _selectedPriceUnit = widget.product!.priceUnit; // Added
     } else if (widget.initialCategory != null) {
       // Set default units based on provided category
       _selectedUnits = _getDefaultUnits(widget.initialCategory!.name);
+      _selectedPriceUnit = '1kg';
     } else {
       _selectedUnits = _getDefaultUnits(null);
+      _selectedPriceUnit = '1kg';
     }
     _selectedCategory = widget.initialCategory;
     _selectedSubCategory = widget.initialSubCategory;
     _loadCategoryHierarchy();
-  }
-
-  List<String> _getDefaultUnits(String? categoryName) {
-    final name = categoryName?.toLowerCase();
-    switch (name) {
-      case 'fruits':
-      case 'légumes':
-        return ['kg', 'g', 'piece'];
-      case 'viandes':
-        return ['kg', 'g'];
-      case 'supermarket':
-        return ['piece', 'pack', 'box', 'bottle', 'can', 'bag'];
-      default:
-        return ['piece', 'kg', 'g'];
-    }
   }
 
   @override
@@ -1268,32 +1258,30 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
         throw Exception('Veuillez saisir un prix valide');
       }
 
-      // Upload picked image if any
+      // Use URL directly (no image upload)
       String imageUrl = _imageUrlController.text.trim();
-      if (_pickedImage != null) {
-        final storage = FirebaseStorage.instance;
-        final fileName =
-            'products/${_selectedSubCategory!.id}/${DateTime.now().millisecondsSinceEpoch}.jpg';
-        final ref = storage.ref(fileName);
-        final bytes = await _pickedImage!.readAsBytes();
-        await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-        imageUrl = await ref.getDownloadURL();
+
+      if (imageUrl.isEmpty) {
+        throw Exception('Veuillez entrer une URL d\'image valide');
       }
 
       if (widget.product != null) {
         // Update product
         final oldCategoryId = widget.product!.categoryId;
         final oldSubCategoryId = widget.product!.subCategoryId;
-        final success =
-            await RealtimeDatabaseService.updateProduct(widget.product!.id, {
-              'name': _nameController.text.trim(),
-              'description': _descriptionController.text.trim(),
-              'price': price,
-              'imageUrl': imageUrl,
-              'availableUnits': _selectedUnits,
-              'categoryId': _selectedCategory!.id,
-              'subCategoryId': _selectedSubCategory!.id,
-            });
+        final success = await RealtimeDatabaseService.updateProduct(
+          widget.product!.id,
+          {
+            'name': _nameController.text.trim(),
+            'description': _descriptionController.text.trim(),
+            'price': price,
+            'priceUnit': _selectedPriceUnit, // Added
+            'imageUrl': imageUrl,
+            'availableUnits': _selectedUnits,
+            'categoryId': _selectedCategory!.id,
+            'subCategoryId': _selectedSubCategory!.id,
+          },
+        );
 
         if (success) {
           final categoryChanged = oldCategoryId != _selectedCategory!.id;
@@ -1322,6 +1310,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
           name: _nameController.text.trim(),
           description: _descriptionController.text.trim(),
           price: price,
+          priceUnit: _selectedPriceUnit, // Added
           imageUrl: imageUrl,
           categoryId: _selectedCategory!.id,
           subCategoryId: _selectedSubCategory!.id,
@@ -1477,7 +1466,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                     TextFormField(
                       controller: _priceController,
                       decoration: InputDecoration(
-                        labelText: 'Prix (€)',
+                        labelText: 'Prix de base (€)',
                         prefixIcon: const Icon(Icons.attach_money_rounded),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(15),
@@ -1488,6 +1477,16 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                             color: AppTheme.primaryColor,
                             width: 2,
                           ),
+                        ),
+                        helperText: _selectedCategory != null
+                            ? PricingUtils.getPricingHint(
+                                _selectedCategory!.name,
+                                _selectedPriceUnit,
+                              )
+                            : 'Sélectionnez une catégorie pour voir les détails',
+                        helperStyle: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
                         ),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(
@@ -1506,59 +1505,65 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Image picker + optional URL
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _imageUrlController,
-                            decoration: InputDecoration(
-                              labelText: 'URL de l\'Image (optionnel)',
-                              prefixIcon: const Icon(Icons.link_rounded),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                                borderSide: BorderSide(
-                                  color: AppTheme.primaryColor,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                            validator: (value) {
-                              if ((_pickedImage == null) &&
-                                  (value == null || value.trim().isEmpty)) {
-                                return 'Choisissez une image ou entrez une URL';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        ElevatedButton.icon(
-                          onPressed: () async {
-                            final picker = ImagePicker();
-                            final picked = await picker.pickImage(
-                              source: ImageSource.gallery,
-                              imageQuality: 85,
-                            );
-                            if (picked != null) {
-                              setState(() {
-                                _pickedImage = picked;
-                              });
+                    // Price Unit Selection
+                    Text(
+                      'Unité du prix affiché',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      children: _priceUnits.map((unit) {
+                        final isSelected = _selectedPriceUnit == unit;
+                        return ChoiceChip(
+                          label: Text(unit),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() => _selectedPriceUnit = unit);
                             }
                           },
-                          icon: const Icon(Icons.photo_library_rounded),
-                          label: Text(
-                            _pickedImage == null ? 'Choisir' : 'Choisie',
+                          selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+                          checkmarkColor: AppTheme.primaryColor,
+                          labelStyle: TextStyle(
+                            color: isSelected
+                                ? AppTheme.primaryColor
+                                : AppTheme.textPrimary,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.white,
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Image URL only (removed image picker)
+                    TextFormField(
+                      controller: _imageUrlController,
+                      decoration: InputDecoration(
+                        labelText: 'URL de l\'Image',
+                        prefixIcon: const Icon(Icons.link_rounded),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: BorderSide(
+                            color: AppTheme.primaryColor,
+                            width: 2,
                           ),
                         ),
-                      ],
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Veuillez entrer une URL d\'image';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 30),
 
@@ -1621,92 +1626,15 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                       padding: const EdgeInsets.all(15),
                       decoration: BoxDecoration(
                         color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Product Image Preview
-                          Container(
-                            height: 120,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              color: Colors.white,
-                            ),
-                            child: _pickedImage != null
-                                ? FutureBuilder<Uint8List>(
-                                    future: _pickedImage!.readAsBytes(),
-                                    builder: (context, snapshot) {
-                                      if (!snapshot.hasData) {
-                                        return const Center(
-                                          child: CircularProgressIndicator(),
-                                        );
-                                      }
-                                      return ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Image.memory(
-                                          snapshot.data!,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      );
-                                    },
-                                  )
-                                : (_imageUrlController.text.isNotEmpty
-                                      ? ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          child: Image.network(
-                                            _imageUrlController.text,
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                                  return const Center(
-                                                    child: Icon(
-                                                      Icons
-                                                          .image_not_supported_rounded,
-                                                      size: 40,
-                                                      color: Colors.grey,
-                                                    ),
-                                                  );
-                                                },
-                                          ),
-                                        )
-                                      : const Center(
-                                          child: Icon(
-                                            Icons.image_rounded,
-                                            size: 40,
-                                            color: Colors.grey,
-                                          ),
-                                        )),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Product Name
                           Text(
-                            _nameController.text.isEmpty
-                                ? 'Nom du Produit'
-                                : _nameController.text,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-
-                          // Price
-                          Text(
-                            () {
-                              final parsed = _parsePriceInput(
-                                _priceController.text,
-                              );
-                              return parsed == null
-                                  ? AppTheme.formatCurrency(0)
-                                  : AppTheme.formatCurrency(parsed);
-                            }(),
+                            _nameController.text.isNotEmpty
+                                ? _nameController.text
+                                : 'Nom du produit',
                             style: TextStyle(
                               fontSize: 18,
                               color: AppTheme.primaryColor,

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:lottie/lottie.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../services/locale_service.dart';
 import '../theme/app_theme.dart';
+import 'forgot_password_screen.dart';
+import 'home_page.dart';
 
 class ClientAuthScreen extends StatefulWidget {
   const ClientAuthScreen({super.key});
@@ -27,89 +27,34 @@ class _LanguageSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
     final isFrench = currentLocale.languageCode == 'fr';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primaryColor.withOpacity(0.12),
-            AppTheme.accentColor.withOpacity(0.12),
-          ],
-        ),
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
+      padding: const EdgeInsets.all(4),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: 54,
-            height: 54,
-            child: Lottie.asset(
-              'lib/assets/animations/language_switch.json',
-              repeat: true,
-              fit: BoxFit.contain,
-              onLoaded: (composition) {},
-            ),
+          _LanguageChip(
+            label: 'EN',
+            selected: !isFrench,
+            onTap: () => onChanged(const Locale('en')),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Shimmer.fromColors(
-                  baseColor: AppTheme.primaryColor,
-                  highlightColor: Colors.white,
-                  child: Text(
-                    l10n.authLanguageLabel,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.authLanguageSubtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryColor.withOpacity(0.15),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: Row(
-                children: [
-                  _LanguageChip(
-                    label: 'EN',
-                    selected: !isFrench,
-                    onTap: () => onChanged(const Locale('en')),
-                  ),
-                  const SizedBox(width: 8),
-                  _LanguageChip(
-                    label: 'FR',
-                    selected: isFrench,
-                    onTap: () => onChanged(const Locale('fr')),
-                  ),
-                ],
-              ),
-            ),
+          const SizedBox(width: 4),
+          _LanguageChip(
+            label: 'FR',
+            selected: isFrench,
+            onTap: () => onChanged(const Locale('fr')),
           ),
         ],
       ),
@@ -215,7 +160,9 @@ class _ClientAuthScreenState extends State<ClientAuthScreen> {
       );
     }
 
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
 
     if (error != null) {
       if (mounted) {
@@ -244,6 +191,11 @@ class _ClientAuthScreenState extends State<ClientAuthScreen> {
             ),
           ),
         );
+
+        // Navigate to Home Page
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const LivriyesHomePage()),
+        );
       }
     }
   }
@@ -251,48 +203,82 @@ class _ClientAuthScreenState extends State<ClientAuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.primaryColor.withOpacity(0.1),
-              AppTheme.secondaryColor.withOpacity(0.05),
-              AppTheme.backgroundColor,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                _buildHeader(),
-                const SizedBox(height: 40),
-                _buildAuthForm(),
-                const SizedBox(height: 30),
-                _buildToggleAuth(),
-              ],
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppTheme.primaryColor.withOpacity(0.1),
+                  AppTheme.secondaryColor.withOpacity(0.05),
+                  AppTheme.backgroundColor,
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildHeader(),
+                      const SizedBox(height: 24),
+                      _buildAuthForm(),
+                      const SizedBox(height: 20),
+                      _buildToggleAuth(),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 16,
+            right: 16,
+            child: _LanguageSelector(
+              currentLocale: Localizations.localeOf(context),
+              onChanged: (locale) async {
+                await context.localeController.updateLocale(locale);
+                if (!mounted) return;
+                final l10n = context.l10n;
+                final selectedName = locale.languageCode == 'fr'
+                    ? l10n.authLanguageFrench
+                    : l10n.authLanguageEnglish;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      l10n.authLanguageChangedMessage(selectedName),
+                    ),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: AppTheme.primaryColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildHeader() {
     final l10n = context.l10n;
-    final localeController = context.localeController;
-    final currentLocale = localeController.locale;
 
     return Column(
       children: [
         // Logo with beautiful container
         Container(
-              width: 120,
-              height: 120,
+              width: 100,
+              height: 100,
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
@@ -318,7 +304,7 @@ class _ClientAuthScreenState extends State<ClientAuthScreen> {
                       child: const Icon(
                         Icons.shopping_cart_outlined,
                         color: Colors.white,
-                        size: 50,
+                        size: 40,
                       ),
                     );
                   },
@@ -332,10 +318,10 @@ class _ClientAuthScreenState extends State<ClientAuthScreen> {
               begin: const Offset(0.8, 0.8),
             )
             .fadeIn(duration: 400.ms),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         Text(
               l10n.appTitle,
-              style: Theme.of(context).textTheme.displayMedium?.copyWith(
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textPrimary,
                 letterSpacing: -0.5,
@@ -362,27 +348,6 @@ class _ClientAuthScreenState extends State<ClientAuthScreen> {
             .animate()
             .fadeIn(delay: 300.ms, duration: 400.ms)
             .scale(begin: const Offset(0.9, 0.9)),
-        const SizedBox(height: 24),
-        _LanguageSelector(
-          currentLocale: currentLocale,
-          onChanged: (locale) async {
-            await localeController.updateLocale(locale);
-            if (!mounted) return;
-            final selectedName = locale.languageCode == 'fr'
-                ? l10n.authLanguageFrench
-                : l10n.authLanguageEnglish;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(l10n.authLanguageChangedMessage(selectedName)),
-                behavior: SnackBarBehavior.floating,
-                backgroundColor: AppTheme.primaryColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-            );
-          },
-        ),
       ],
     );
   }
@@ -624,51 +589,105 @@ class _ClientAuthScreenState extends State<ClientAuthScreen> {
   Widget _buildToggleAuth() {
     final l10n = context.l10n;
 
-    return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.7),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                _isSignUp
-                    ? l10n.authToggleQuestionSignUp
-                    : l10n.authToggleQuestionSignIn,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
-              ),
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _isSignUp = !_isSignUp;
-                    _nameController.clear();
-                    _phoneController.clear();
-                    _passwordController.clear();
-                    _confirmPasswordController.clear();
-                    _fullPhoneNumber = '';
-                  });
-                },
-                child: Text(
-                  _isSignUp
-                      ? l10n.authToggleActionSignUp
-                      : l10n.authToggleActionSignIn,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.primaryColor,
-                    fontSize: 15,
+    return Column(
+      children: [
+        // Forgot Password Button (only show on login)
+        if (!_isSignUp)
+          Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ForgotPasswordScreen(),
+                      ),
+                    );
+
+                    // If password reset was successful, pre-fill the login fields
+                    if (result is Map &&
+                        result['phone'] != null &&
+                        result['password'] != null) {
+                      setState(() {
+                        _isSignUp = false; // Ensure we're in login mode
+                        _phoneController.text = result['phone'];
+                        _passwordController.text = result['password'];
+                        _fullPhoneNumber = '+213${result['phone']}';
+                      });
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text(
+                            'Mot de passe réinitialisé! Vous pouvez maintenant vous connecter.',
+                          ),
+                          backgroundColor: AppTheme.successColor,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.lock_reset_rounded),
+                  label: const Text('Mot de passe oublié ?'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.primaryColor,
                   ),
                 ),
+              )
+              .animate()
+              .fadeIn(delay: 700.ms, duration: 400.ms)
+              .slideX(begin: 0.2, end: 0, delay: 700.ms),
+        const SizedBox(height: 16),
+        // Toggle Auth
+        Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(16),
               ),
-            ],
-          ),
-        )
-        .animate()
-        .fadeIn(delay: 800.ms, duration: 400.ms)
-        .slideY(begin: 0.2, end: 0, delay: 800.ms);
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _isSignUp
+                        ? l10n.authToggleQuestionSignUp
+                        : l10n.authToggleQuestionSignIn,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _isSignUp = !_isSignUp;
+                        _nameController.clear();
+                        _phoneController.clear();
+                        _passwordController.clear();
+                        _confirmPasswordController.clear();
+                        _fullPhoneNumber = '';
+                      });
+                    },
+                    child: Text(
+                      _isSignUp
+                          ? l10n.authToggleActionSignUp
+                          : l10n.authToggleActionSignIn,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.primaryColor,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+            .animate()
+            .fadeIn(delay: 800.ms, duration: 400.ms)
+            .slideY(begin: 0.2, end: 0, delay: 800.ms),
+      ],
+    );
   }
 }

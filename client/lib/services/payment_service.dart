@@ -1,14 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_core/firebase_core.dart';
-import '../firebase_options.dart';
 
 class PaymentService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final FirebaseDatabase _db = FirebaseDatabase.instanceFor(
-    app: Firebase.app(),
-    databaseURL: DefaultFirebaseOptions.currentPlatform.databaseURL,
-  );
+  static final FirebaseDatabase _db = FirebaseDatabase.instance;
 
   static DatabaseReference _userRef(String uid) =>
       _db.ref('users').child(uid).child('paymentMethods');

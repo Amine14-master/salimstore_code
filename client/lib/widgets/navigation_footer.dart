@@ -15,27 +15,18 @@ class NavigationFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: selectedIndex,
-        onTap: onTap,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: AppTheme.primaryColor,
-        unselectedItemColor: AppTheme.textLight,
-        selectedFontSize: 12,
-        unselectedFontSize: 11,
-        items: isAdmin ? _getAdminItems() : _getClientItems(),
-      ),
+    return BottomNavigationBar(
+      currentIndex: selectedIndex,
+      onTap: onTap,
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.white,
+      selectedItemColor: AppTheme.primaryColor,
+      unselectedItemColor: AppTheme.textLight,
+      selectedFontSize: 14,
+      unselectedFontSize: 12,
+      iconSize: 28,
+      elevation: 8,
+      items: isAdmin ? _getAdminItems() : _getClientItems(),
     );
   }
 

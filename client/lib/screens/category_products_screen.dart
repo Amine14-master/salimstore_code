@@ -1,17 +1,23 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shimmer/shimmer.dart';
 import '../theme/app_theme.dart';
 import '../services/realtime_database_service.dart';
 import '../models/product_models.dart';
+import '../utils/image_utils.dart';
 import 'product_detail_screen.dart';
 import '../widgets/add_to_cart_dialog.dart';
 import '../utils/formatting.dart';
 
 class CategoryProductsScreen extends StatefulWidget {
   final Category category;
+  final SubCategory? subCategory;
 
-  const CategoryProductsScreen({super.key, required this.category});
+  const CategoryProductsScreen({
+    super.key,
+    required this.category,
+    this.subCategory,
+  });
 
   @override
   State<CategoryProductsScreen> createState() => _CategoryProductsScreenState();
@@ -36,37 +42,44 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
 
   void _setupRealtimeListener() {
     setState(() => _loading = true);
-    _productsSubscription =
-        RealtimeDatabaseService.productsByCategoryStream(
-          widget.category.id,
-        ).listen(
-          (products) {
-            if (mounted) {
-              // Sort by latest first
-              products.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-              setState(() {
-                _products = products;
-                _loading = false;
-              });
-            }
-          },
-          onError: (error) {
-            print('Error listening to products: $error');
-            if (mounted) {
-              setState(() => _loading = false);
-            }
-          },
-        );
+
+    final stream = widget.subCategory != null
+        ? RealtimeDatabaseService.productsBySubCategoryStream(
+            widget.subCategory!.id,
+          )
+        : RealtimeDatabaseService.productsByCategoryStream(widget.category.id);
+
+    _productsSubscription = stream.listen(
+      (products) {
+        if (mounted) {
+          // Sort by latest first
+          products.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          setState(() {
+            _products = products;
+            _loading = false;
+          });
+        }
+      },
+      onError: (error) {
+        print('Error listening to products: $error');
+        if (mounted) {
+          setState(() => _loading = false);
+        }
+      },
+    );
   }
 
   Future<void> _loadProducts() async {
     // Keep for refresh indicator compatibility
     setState(() => _loading = true);
     try {
-      final categoryProducts =
-          await RealtimeDatabaseService.getProductsByCategory(
-            widget.category.id,
-          );
+      final categoryProducts = widget.subCategory != null
+          ? await RealtimeDatabaseService.getProductsBySubCategory(
+              widget.subCategory!.id,
+            )
+          : await RealtimeDatabaseService.getProductsByCategory(
+              widget.category.id,
+            );
 
       categoryProducts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -86,8 +99,6 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final color = _parseColor(widget.category.color);
-
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
@@ -99,7 +110,10 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [color.withOpacity(0.9), color.withOpacity(0.6)],
+                    colors: [
+                      AppTheme.primaryColor.withOpacity(0.9),
+                      AppTheme.primaryColor.withOpacity(0.7),
+                    ],
                   ),
                 ),
                 child: Row(
@@ -115,14 +129,22 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.category.name,
+                            widget.subCategory?.name ?? widget.category.name,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          if (widget.category.description.isNotEmpty)
+                          if (widget.subCategory != null)
+                            Text(
+                              widget.category.name,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                            )
+                          else if (widget.category.description.isNotEmpty)
                             Text(
                               widget.category.description,
                               style: const TextStyle(
@@ -164,21 +186,21 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                           ],
                         ),
                       )
-                    : RefreshIndicator(
-                        onRefresh: _loadProducts,
+                    : Padding(
+                        padding: const EdgeInsets.all(16),
                         child: GridView.builder(
-                          padding: const EdgeInsets.all(16),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                childAspectRatio: 0.72,
+                                crossAxisSpacing: 16,
+                                mainAxisSpacing: 16,
+                                childAspectRatio: 0.78,
                               ),
                           itemCount: _products.length,
                           itemBuilder: (context, index) {
                             final product = _products[index];
-                            return GestureDetector(
+
+                            final card = GestureDetector(
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -188,230 +210,221 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
                                   ),
                                 );
                               },
-                              child:
-                                  Container(
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(
-                                            18,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: AppTheme.primaryColor
-                                                  .withOpacity(0.08),
-                                              blurRadius: 15,
-                                              offset: const Offset(0, 5),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            ClipRRect(
-                                              borderRadius:
-                                                  const BorderRadius.only(
-                                                    topLeft: Radius.circular(
-                                                      18,
-                                                    ),
-                                                    topRight: Radius.circular(
-                                                      18,
-                                                    ),
-                                                  ),
-                                              child: Stack(
-                                                children: [
-                                                  Container(
-                                                    height: 120,
-                                                    width: double.infinity,
-                                                    color: AppTheme.accentColor
-                                                        .withOpacity(0.1),
-                                                    child:
-                                                        product
-                                                            .imageUrl
-                                                            .isNotEmpty
-                                                        ? Image.network(
-                                                            product.imageUrl,
-                                                            fit: BoxFit.cover,
-                                                            errorBuilder:
-                                                                (
-                                                                  _,
-                                                                  __,
-                                                                  ___,
-                                                                ) => const Center(
-                                                                  child: Icon(
-                                                                    Icons.image,
-                                                                    size: 40,
-                                                                  ),
-                                                                ),
-                                                          )
-                                                        : const Center(
-                                                            child: Icon(
-                                                              Icons.image,
-                                                              size: 40,
-                                                            ),
-                                                          ),
-                                                  ),
-                                                  if (!product.isAvailable)
-                                                    Container(
-                                                      height: 120,
-                                                      color: Colors.black54,
-                                                      child: const Center(
-                                                        child: Text(
-                                                          'Indisponible',
-                                                          style: TextStyle(
-                                                            color: Colors.white,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding: const EdgeInsets.all(12),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    product.name,
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .titleMedium
-                                                        ?.copyWith(
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                    maxLines: 2,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    product.description,
-                                                    style: TextStyle(
-                                                      color: AppTheme
-                                                          .textSecondary,
-                                                      fontSize: 11,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .spaceBetween,
-                                                    children: [
-                                                      Text(
-                                                        FormattingUtils.formatPriceWithLocale(
-                                                          product.price,
-                                                          Localizations.localeOf(
-                                                            context,
-                                                          ),
-                                                        ),
-                                                        style: TextStyle(
-                                                          color: AppTheme
-                                                              .successColor,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontSize: 14,
-                                                        ),
-                                                      ),
-                                                      Row(
-                                                        children: [
-                                                          Icon(
-                                                            Icons.star,
-                                                            color: Colors
-                                                                .amber
-                                                                .shade400,
-                                                            size: 14,
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 2,
-                                                          ),
-                                                          Text(
-                                                            product.rating
-                                                                .toStringAsFixed(
-                                                                  1,
-                                                                ),
-                                                            style:
-                                                                const TextStyle(
-                                                                  fontSize: 11,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w600,
-                                                                ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  SizedBox(
-                                                    width: double.infinity,
-                                                    child: ElevatedButton(
-                                                      onPressed: () async {
-                                                        final result =
-                                                            await showDialog(
-                                                              context: context,
-                                                              builder: (context) =>
-                                                                  AddToCartDialog(
-                                                                    product:
-                                                                        product,
-                                                                  ),
-                                                            );
-                                                        if (result != null &&
-                                                            mounted) {
-                                                          ScaffoldMessenger.of(
-                                                            context,
-                                                          ).showSnackBar(
-                                                            SnackBar(
-                                                              content: Text(
-                                                                '${result['quantity']}x ${product.name} ajouté${result['quantity'] > 1 ? 's' : ''} au panier',
-                                                              ),
-                                                              backgroundColor:
-                                                                  AppTheme
-                                                                      .successColor,
-                                                            ),
-                                                          );
-                                                        }
-                                                      },
-                                                      style: ElevatedButton.styleFrom(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              vertical: 8,
-                                                            ),
-                                                      ),
-                                                      child: const Text(
-                                                        'Ajouter',
-                                                        style: TextStyle(
-                                                          fontSize: 12,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      )
-                                      .animate()
-                                      .fade(
-                                        duration: 300.ms,
-                                        delay: (index * 80).ms,
-                                      )
-                                      .scale(
-                                        begin: const Offset(0.9, 0.9),
-                                        end: const Offset(1, 1),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppTheme.primaryColor.withOpacity(
+                                        0.08,
                                       ),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(24),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.white,
+                                          AppTheme.backgroundColor.withOpacity(
+                                            0.9,
+                                          ),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // Image area (same as home tab product card)
+                                        Expanded(
+                                          child: Stack(
+                                            children: [
+                                              Positioned.fill(
+                                                child: Container(
+                                                  color: AppTheme.accentColor
+                                                      .withOpacity(0.08),
+                                                  child: _buildProductImage(
+                                                    product,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (!product.isAvailable)
+                                                Positioned.fill(
+                                                  child: Container(
+                                                    color: Colors.black54,
+                                                    child: const Center(
+                                                      child: Text(
+                                                        'Indisponible',
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        // Content area (same spacing and button style as home)
+                                        Expanded(
+                                          child: Padding(
+                                            padding: const EdgeInsets.fromLTRB(
+                                              12,
+                                              8,
+                                              12,
+                                              12,
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        product.name,
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .bodyMedium
+                                                            ?.copyWith(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                        maxLines: 2,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .end,
+                                                      children: [
+                                                        if (product.originalPrice !=
+                                                                null &&
+                                                            product.originalPrice! >
+                                                                product.price)
+                                                          Text(
+                                                            FormattingUtils.formatPriceWithLocale(
+                                                              product
+                                                                  .originalPrice!,
+                                                              Localizations.localeOf(
+                                                                context,
+                                                              ),
+                                                            ),
+                                                            style: TextStyle(
+                                                              color: AppTheme
+                                                                  .textSecondary,
+                                                              fontSize: 10,
+                                                              decoration:
+                                                                  TextDecoration
+                                                                      .lineThrough,
+                                                            ),
+                                                          ),
+                                                        Text(
+                                                          '${FormattingUtils.formatPriceWithLocale(product.price, Localizations.localeOf(context))}',
+                                                          style: Theme.of(context)
+                                                              .textTheme
+                                                              .bodyMedium
+                                                              ?.copyWith(
+                                                                color: AppTheme
+                                                                    .primaryColor,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                              ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                                const Spacer(),
+                                                SizedBox(
+                                                  width: double.infinity,
+                                                  child: ElevatedButton.icon(
+                                                    onPressed: () async {
+                                                      final result =
+                                                          await showDialog(
+                                                            context: context,
+                                                            builder: (context) =>
+                                                                AddToCartDialog(
+                                                                  product:
+                                                                      product,
+                                                                ),
+                                                          );
+                                                      if (result != null &&
+                                                          mounted) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              '${result['quantity']}x ${product.name} ajouté${result['quantity'] > 1 ? 's' : ''} au panier',
+                                                            ),
+                                                            backgroundColor:
+                                                                AppTheme
+                                                                    .successColor,
+                                                          ),
+                                                        );
+                                                      }
+                                                    },
+                                                    icon: const Icon(
+                                                      Icons
+                                                          .add_shopping_cart_rounded,
+                                                      size: 18,
+                                                    ),
+                                                    label: const Text(
+                                                      'Ajouter',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                    style: ElevatedButton.styleFrom(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            vertical: 10,
+                                                          ),
+                                                      elevation: 0,
+                                                      backgroundColor:
+                                                          AppTheme.primaryColor,
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              14,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                             );
+
+                            return card;
                           },
                         ),
                       ),
@@ -421,14 +434,6 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
         ),
       ),
     );
-  }
-
-  Color _parseColor(String hex) {
-    try {
-      return Color(int.parse(hex.replaceAll('#', '0xFF')));
-    } catch (_) {
-      return AppTheme.primaryColor;
-    }
   }
 
   IconData _iconForName(String iconName) {
@@ -585,5 +590,29 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
       default:
         return Icons.category_rounded;
     }
+  }
+
+  Widget _buildProductImage(Product product) {
+    return ImageUtils.buildNetworkImage(
+      imageUrl: product.imageUrl,
+      placeholder: Shimmer.fromColors(
+        baseColor: Colors.white.withOpacity(0.4),
+        highlightColor: Colors.white.withOpacity(0.85),
+        child: Container(color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderIcon() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.image_not_supported, size: 40, color: Colors.grey),
+          SizedBox(height: 4),
+          Text('No Image', style: TextStyle(fontSize: 12, color: Colors.grey)),
+        ],
+      ),
+    );
   }
 }

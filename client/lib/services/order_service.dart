@@ -1,32 +1,27 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_core/firebase_core.dart';
-import '../firebase_options.dart';
 import 'cart_service.dart';
 import 'city_service.dart';
 import 'wilaya_geo_service.dart';
 
 class OrderService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final FirebaseDatabase _db = FirebaseDatabase.instanceFor(
-    app: Firebase.app(),
-    databaseURL: DefaultFirebaseOptions.currentPlatform.databaseURL,
-  );
+  static final FirebaseDatabase _db = FirebaseDatabase.instance;
 
   static DatabaseReference get _ordersRef => _db.ref('orders');
   static DatabaseReference get _orderCounterRef => _db.ref('orderCounter');
 
-  /// Generate order ID in format: YYWW-BCXXXXX
-  /// YY = Year (last 2 digits)
-  /// WW = Wilaya code (2 digits)
+  /// Generate order ID in format: BCYYYYWW00000
   /// BC = Bon de Commande prefix
-  /// XXXXX = Sequential order number (5 digits)
+  /// YYYY = Year (4 digits)
+  /// WW = Wilaya code (2 digits)
+  /// 00000 = Sequential order number (5 digits)
   static Future<String> _generateOrderId(String wilayaCode) async {
     try {
-      // Get last 2 digits of current year
-      final year = DateTime.now().year.toString().substring(2);
+      // Use full 4-digit year for readability
+      final year = DateTime.now().year.toString();
 
-      // Get or create order counter for this wilaya
+      // Get or create order counter for this wilaya and year
       final counterRef = _orderCounterRef.child('${year}_$wilayaCode');
       final counterSnap = await counterRef.get();
 
@@ -43,20 +38,20 @@ class OrderService {
       // Update counter
       await counterRef.set(orderNumber);
 
-      // Format: YYWW-BCXXXXX
+      // Format: BCYYYYWW00000
       final wilayaCodePadded = wilayaCode.padLeft(2, '0');
       final orderNumberPadded = orderNumber.toString().padLeft(5, '0');
 
-      return '$year$wilayaCodePadded-BC$orderNumberPadded';
+      return 'BC${year}$wilayaCodePadded$orderNumberPadded';
     } catch (e) {
       print('Error generating order ID: $e');
       // Fallback: use timestamp-based ID
-      final year = DateTime.now().year.toString().substring(2);
+      final year = DateTime.now().year.toString();
       final wilayaCodePadded = wilayaCode.padLeft(2, '0');
       final timestamp = DateTime.now().millisecondsSinceEpoch
           .toString()
           .substring(7);
-      return '$year$wilayaCodePadded-BC$timestamp';
+      return 'BC${year}$wilayaCodePadded$timestamp';
     }
   }
 
@@ -124,6 +119,8 @@ class OrderService {
     String? wilaya,
     double? latitude,
     double? longitude,
+    String? receiverName,
+    String? receiverPhone,
   }) async {
     final user = _auth.currentUser;
     if (user == null) return null;
@@ -175,6 +172,10 @@ class OrderService {
         'deliveryLabel': deliveryLabel,
       'wilaya': wilaya ?? '',
       'wilayaCode': wilayaCode,
+      if (receiverName != null && receiverName.isNotEmpty)
+        'receiverName': receiverName,
+      if (receiverPhone != null && receiverPhone.isNotEmpty)
+        'receiverPhone': receiverPhone,
       'createdAt': ServerValue.timestamp,
       'updatedAt': ServerValue.timestamp,
     });

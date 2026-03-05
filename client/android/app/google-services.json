@@ -8,9 +8,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:550016293282:android:dc14aeaecb0fde28c63afb",
+        "mobilesdk_app_id": "1:550016293282:android:f96322979fa3280ac63afb",
         "android_client_info": {
-          "package_name": "com.example.admin"
+          "package_name": "com.livriyes.Livriyes"
         }
       },
       "oauth_client": [],
@@ -27,9 +27,28 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:550016293282:android:c977812c318dcb2cc63afb",
+        "mobilesdk_app_id": "1:550016293282:android:a106d2acadb60627c63afb",
         "android_client_info": {
-          "package_name": "com.example.client"
+          "package_name": "com.livriyes.Livriyes_admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1UrT3a4Vc9UO-zVaS3GS3-uvrjVuWTRs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:550016293282:android:3af432aef102dc3bc63afb",
+        "android_client_info": {
+          "package_name": "com.livriyes.admin"
         }
       },
       "oauth_client": [],

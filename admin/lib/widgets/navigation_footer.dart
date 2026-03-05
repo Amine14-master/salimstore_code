@@ -79,6 +79,11 @@ class NavigationFooter extends StatelessWidget {
         activeIcon: Icon(Icons.person),
         label: 'Profil',
       ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.campaign_outlined),
+        activeIcon: Icon(Icons.campaign),
+        label: 'Annonces',
+      ),
     ];
   }
 
@@ -103,6 +108,11 @@ class NavigationFooter extends StatelessWidget {
         icon: Icon(Icons.person_outline),
         activeIcon: Icon(Icons.person),
         label: 'Profil',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.campaign_outlined),
+        activeIcon: Icon(Icons.campaign),
+        label: 'Annonces',
       ),
     ];
   }

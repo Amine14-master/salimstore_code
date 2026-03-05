@@ -44,6 +44,10 @@ function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
   target_compile_definitions(${TARGET} PRIVATE "_CRT_SECURE_NO_WARNINGS")
   target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
+  # Fix for Firebase Windows linking issues
+  target_compile_definitions(${TARGET} PRIVATE "_HAS_ITERATOR_DEBUGGING=0")
+  target_compile_definitions(${TARGET} PRIVATE "_SECURE_SCL=0")
+  target_compile_definitions(${TARGET} PRIVATE "_ITERATOR_DEBUG_LEVEL=0")
 endfunction()
 
 # Flutter library and tool build rules.

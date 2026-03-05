@@ -57,7 +57,7 @@ class NavigationSidebar extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'Salim Store',
+                          'Livriyes',
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w700),
                         ),
@@ -319,6 +319,11 @@ class NavigationSidebar extends StatelessWidget {
         'activeIcon': Icons.person,
         'label': 'Profil',
       },
+      {
+        'icon': Icons.campaign_outlined,
+        'activeIcon': Icons.campaign,
+        'label': 'Annonces',
+      },
     ];
   }
 
@@ -331,9 +336,7 @@ class NavigationSidebar extends StatelessWidget {
         vertical: isCollapsed ? 4 : 6,
       ),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppTheme.primaryColor, AppTheme.accentColor],
-        ),
+        gradient: AppTheme.primaryGradient,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -359,3 +362,4 @@ class NavigationSidebar extends StatelessWidget {
     );
   }
 }
+

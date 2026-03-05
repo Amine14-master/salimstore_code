@@ -1,18 +1,14 @@
 ﻿import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_core/firebase_core.dart';
 import '../models/product_models.dart';
-import '../firebase_options.dart';
 
 class RealtimeDatabaseService {
-  static final FirebaseDatabase _database = FirebaseDatabase.instanceFor(
-    app: Firebase.app(),
-    databaseURL: DefaultFirebaseOptions.currentPlatform.databaseURL,
-  );
+  static final FirebaseDatabase _database = FirebaseDatabase.instance;
 
   static DatabaseReference get _categoriesRef => _database.ref('categories');
   static DatabaseReference get _productsRef => _database.ref('products');
   static DatabaseReference get _promotionsRef => _database.ref('promotions');
+  static DatabaseReference get _settingsRef => _database.ref('settings');
 
   static Map<String, dynamic> _normalizeSnapshotMap(dynamic value) {
     if (value == null) return {};
@@ -64,14 +60,15 @@ class RealtimeDatabaseService {
                 'createdAt':
                     categoryData['createdAt'] ??
                     DateTime.now().millisecondsSinceEpoch,
+                'order': categoryData['order'] ?? 0,
               }),
             );
           } catch (e) {
             print('Error parsing category: $e');
           }
         }
-        // Sort by creation date (newest first)
-        categories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        // Sort by order ascending
+        categories.sort((a, b) => a.order.compareTo(b.order));
         print('Client: Loaded ${categories.length} categories');
         return categories;
       }
@@ -93,7 +90,7 @@ class RealtimeDatabaseService {
             'id': entry.key.toString(),
             ...Map<String, dynamic>.from(entry.value as Map),
           });
-        }).toList();
+        }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
       return [];
     } catch (e) {
@@ -116,7 +113,7 @@ class RealtimeDatabaseService {
             'id': entry.key.toString(),
             ...Map<String, dynamic>.from(entry.value as Map),
           });
-        }).toList();
+        }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
       return [];
     } catch (e) {
@@ -133,44 +130,36 @@ class RealtimeDatabaseService {
 
   static Future<List<Map<String, dynamic>>> getPromotions() async {
     try {
-      // Try with index first
-      try {
-        final snapshot = await _promotionsRef
-            .orderByChild('isActive')
-            .equalTo(true)
-            .get();
-        if (snapshot.exists) {
-          final Map<dynamic, dynamic> data =
-              snapshot.value as Map<dynamic, dynamic>;
-          return data.entries
-              .where((entry) => entry.value != null)
-              .map((entry) {
-                final promoData = Map<String, dynamic>.from(entry.value as Map);
-                return {'id': entry.key.toString(), ...promoData};
-              })
-              .where((promo) => promo['isActive'] == true)
-              .toList();
-        }
-      } catch (e) {
-        print('Index query failed, using fallback: $e');
-        // Fallback: Get all promotions and filter client-side
-        final snapshot = await _promotionsRef.get();
-        if (snapshot.exists) {
-          final Map<dynamic, dynamic> data =
-              snapshot.value as Map<dynamic, dynamic>;
-          return data.entries
-              .where((entry) => entry.value != null)
-              .map((entry) {
-                final promoData = Map<String, dynamic>.from(entry.value as Map);
-                return {'id': entry.key.toString(), ...promoData};
-              })
-              .where((promo) => promo['isActive'] == true)
-              .toList();
-        }
+      print('RealtimeDatabaseService(Client): Fetching active promotions...');
+      final snapshot = await _promotionsRef.get();
+
+      if (!snapshot.exists) {
+        print('RealtimeDatabaseService(Client): No promotions table found');
+        return [];
       }
-      return [];
+
+      final Map<dynamic, dynamic> data =
+          snapshot.value as Map<dynamic, dynamic>;
+
+      final activePromotions = data.entries
+          .where((entry) => entry.value != null)
+          .map((entry) {
+            final promoData = Map<String, dynamic>.from(entry.value as Map);
+            return {'id': entry.key.toString(), ...promoData};
+          })
+          .where((promo) {
+            // Be resilient: default to active if null to avoid disappearing items
+            final bool isActive = promo['isActive'] ?? true;
+            return isActive == true;
+          })
+          .toList();
+
+      print(
+        'RealtimeDatabaseService(Client): Found ${activePromotions.length} active promotions',
+      );
+      return activePromotions;
     } catch (e) {
-      print('Error getting promotions: $e');
+      print('RealtimeDatabaseService(Client): Error getting promotions: $e');
       return [];
     }
   }
@@ -200,13 +189,14 @@ class RealtimeDatabaseService {
                 'createdAt':
                     categoryData['createdAt'] ??
                     DateTime.now().millisecondsSinceEpoch,
+                'order': categoryData['order'] ?? 0,
               }),
             );
           } catch (e) {
             print('Error parsing category: $e');
           }
         }
-        categories.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        categories.sort((a, b) => a.order.compareTo(b.order));
         return categories;
       }
       return [];
@@ -223,7 +213,7 @@ class RealtimeDatabaseService {
             'id': entry.key.toString(),
             ...Map<String, dynamic>.from(entry.value as Map),
           });
-        }).toList();
+        }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       }
       return [];
     });
@@ -249,7 +239,7 @@ class RealtimeDatabaseService {
                 'id': entry.key.toString(),
                 ...Map<String, dynamic>.from(entry.value as Map),
               });
-            }).toList();
+            }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           }
           return [];
         });
@@ -270,6 +260,153 @@ class RealtimeDatabaseService {
             .toList();
       }
       return [];
+    });
+  }
+
+  static DatabaseReference get _subCategoriesRef =>
+      _database.ref('subCategories');
+
+  // ... existing methods ...
+
+  static Future<List<SubCategory>> getSubCategoriesByIds(
+    List<String> ids,
+  ) async {
+    try {
+      if (ids.isEmpty) return [];
+
+      final futures = ids.map((id) => _subCategoriesRef.child(id).get());
+      final snapshots = await Future.wait(futures);
+
+      final subCategories = <SubCategory>[];
+      for (final snapshot in snapshots) {
+        if (snapshot.exists && snapshot.value != null) {
+          try {
+            final data = _asMap(snapshot.value);
+            subCategories.add(
+              SubCategory.fromJson({'id': snapshot.key.toString(), ...data}),
+            );
+          } catch (e) {
+            print('Error parsing subcategory ${snapshot.key}: $e');
+          }
+        }
+      }
+      return subCategories;
+    } catch (e) {
+      print('Error getting subcategories: $e');
+      return [];
+    }
+  }
+
+  static Future<List<SubCategory>> getSubCategoriesByCategoryId(
+    String categoryId,
+  ) async {
+    try {
+      final snapshot = await _subCategoriesRef
+          .orderByChild('categoryId')
+          .equalTo(categoryId)
+          .get();
+
+      if (snapshot.exists) {
+        final data = _normalizeSnapshotMap(snapshot.value);
+        final subCategories = <SubCategory>[];
+        for (final entry in data.entries) {
+          if (entry.value == null) continue;
+          try {
+            final subCatData = _asMap(entry.value);
+            subCategories.add(
+              SubCategory.fromJson({'id': entry.key.toString(), ...subCatData}),
+            );
+          } catch (e) {
+            print('Error parsing subcategory ${entry.key}: $e');
+          }
+        }
+        return subCategories;
+      }
+      return [];
+    } catch (e) {
+      print('Error getting subcategories by category: $e');
+      return [];
+    }
+  }
+
+  static Future<List<Product>> getProductsBySubCategory(
+    String subCategoryId,
+  ) async {
+    try {
+      final snapshot = await _productsRef
+          .orderByChild('subCategoryId')
+          .equalTo(subCategoryId)
+          .get();
+
+      if (snapshot.exists) {
+        final Map<dynamic, dynamic> data =
+            snapshot.value as Map<dynamic, dynamic>;
+        return data.entries.where((entry) => entry.value != null).map((entry) {
+          return Product.fromJson({
+            'id': entry.key.toString(),
+            ...Map<String, dynamic>.from(entry.value as Map),
+          });
+        }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      }
+      return [];
+    } catch (e) {
+      print('Error getting products by subcategory: $e');
+      // Fallback: fetch all and filter
+      try {
+        final all = await getAllProducts();
+        return all.where((p) => p.subCategoryId == subCategoryId).toList();
+      } catch (_) {
+        return [];
+      }
+    }
+  }
+
+  static Stream<List<Product>> productsBySubCategoryStream(
+    String subCategoryId,
+  ) {
+    return _productsRef
+        .orderByChild('subCategoryId')
+        .equalTo(subCategoryId)
+        .onValue
+        .handleError((error) {
+          print('Error in productsBySubCategoryStream: $error');
+        })
+        .map((event) {
+          if (event.snapshot.exists) {
+            final Map<dynamic, dynamic> data =
+                event.snapshot.value as Map<dynamic, dynamic>;
+            return data.entries.where((entry) => entry.value != null).map((
+              entry,
+            ) {
+              return Product.fromJson({
+                'id': entry.key.toString(),
+                ...Map<String, dynamic>.from(entry.value as Map),
+              });
+            }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          }
+          return [];
+        });
+  }
+
+  static Future<Map<String, dynamic>> getDeliveryPrices() async {
+    try {
+      final snapshot = await _settingsRef.child('deliveryPrices').get();
+      if (snapshot.exists) {
+        return Map<String, dynamic>.from(snapshot.value as Map);
+      }
+      return {'bejaiaCityFee': 3.49, 'otherWilayaFee': 8.99};
+    } catch (e) {
+      print('Error getting delivery prices: $e');
+      return {'bejaiaCityFee': 3.49, 'otherWilayaFee': 8.99};
+    }
+  }
+
+  static Stream<Map<String, dynamic>> deliveryPricesStream() {
+    return _settingsRef.child('deliveryPrices').onValue.map((event) {
+      if (event.snapshot.exists) {
+        return Map<String, dynamic>.from(event.snapshot.value as Map);
+      }
+      return {'bejaiaCityFee': 3.49, 'otherWilayaFee': 8.99};
     });
   }
 }

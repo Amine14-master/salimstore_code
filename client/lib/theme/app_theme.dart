@@ -21,7 +21,7 @@ class AppTheme {
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [primaryColor, secondaryColor],
+    colors: [Color(0xFF11AB2F), Color(0xFF67DF47)],
   );
 
   static const LinearGradient backgroundGradient = LinearGradient(

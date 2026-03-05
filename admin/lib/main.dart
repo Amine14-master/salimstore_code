@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'firebase_options.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_page.dart';
@@ -9,6 +11,13 @@ import 'theme/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Enable RTDB persistence and logging (only on non-web platforms)
+  if (!kIsWeb) {
+    FirebaseDatabase.instance.setPersistenceEnabled(true);
+  }
+  FirebaseDatabase.instance.setLoggingEnabled(true);
+
   // Removed default category initialization
   runApp(const AdminApp());
 }
@@ -19,7 +28,7 @@ class AdminApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Salim Store Admin',
+      title: 'Livriyes Admin',
       theme: AppTheme.theme,
       debugShowCheckedModeBanner: false,
       home: const AuthWrapper(),
@@ -52,3 +61,4 @@ class AuthWrapper extends StatelessWidget {
     );
   }
 }
+

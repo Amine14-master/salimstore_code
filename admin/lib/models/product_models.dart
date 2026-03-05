@@ -22,6 +22,7 @@ class Product {
   final String name;
   final String description;
   final double price;
+  final String priceUnit; // Added field
   final String imageUrl;
   final double rating;
   final int reviewCount;
@@ -37,6 +38,7 @@ class Product {
     required this.name,
     required this.description,
     required this.price,
+    this.priceUnit = '1kg', // Added with default
     required this.imageUrl,
     required this.rating,
     required this.reviewCount,
@@ -54,12 +56,13 @@ class Product {
       name: json['name'],
       description: json['description'],
       price: json['price'].toDouble(),
+      priceUnit: json['priceUnit'] ?? '1kg',
       imageUrl: json['imageUrl'],
       rating: json['rating'].toDouble(),
       reviewCount: json['reviewCount'],
       categoryId: json['categoryId'],
       subCategoryId: json['subCategoryId'],
-      availableUnits: List<String>.from(json['availableUnits'] ?? []),
+      availableUnits: _parseStringList(json['availableUnits']),
       isAvailable: json['isAvailable'] ?? true,
       createdAt: json['createdAt'] is int
           ? DateTime.fromMillisecondsSinceEpoch(json['createdAt'])
@@ -76,6 +79,7 @@ class Product {
       'name': name,
       'description': description,
       'price': price,
+      'priceUnit': priceUnit,
       'imageUrl': imageUrl,
       'rating': rating,
       'reviewCount': reviewCount,
@@ -98,6 +102,7 @@ class Category {
   final String? iconUrl;
   final List<String> subCategoryIds;
   final DateTime createdAt;
+  final int order;
 
   Category({
     required this.id,
@@ -108,6 +113,7 @@ class Category {
     this.iconUrl,
     required this.subCategoryIds,
     required this.createdAt,
+    this.order = 0,
   });
 
   factory Category.fromJson(Map<String, dynamic> json) {
@@ -122,6 +128,7 @@ class Category {
       createdAt: json['createdAt'] is int
           ? DateTime.fromMillisecondsSinceEpoch(json['createdAt'])
           : DateTime.now(),
+      order: json['order'] ?? 0,
     );
   }
 
@@ -135,6 +142,7 @@ class Category {
       'iconUrl': iconUrl,
       'subCategoryIds': subCategoryIds,
       'createdAt': createdAt.toIso8601String(),
+      'order': order,
     };
   }
 }
@@ -144,6 +152,7 @@ class SubCategory {
   final String name;
   final String description;
   final String categoryId;
+  final String? imageUrl;
   final List<String> productIds;
   final DateTime createdAt;
 
@@ -152,6 +161,7 @@ class SubCategory {
     required this.name,
     required this.description,
     required this.categoryId,
+    this.imageUrl,
     required this.productIds,
     required this.createdAt,
   });
@@ -162,6 +172,7 @@ class SubCategory {
       name: json['name'],
       description: json['description'],
       categoryId: json['categoryId'],
+      imageUrl: json['imageUrl'],
       productIds: _parseStringList(json['productIds']),
       createdAt: json['createdAt'] is int
           ? DateTime.fromMillisecondsSinceEpoch(json['createdAt'])
@@ -175,6 +186,7 @@ class SubCategory {
       'name': name,
       'description': description,
       'categoryId': categoryId,
+      'imageUrl': imageUrl,
       'productIds': productIds,
       'createdAt': createdAt.toIso8601String(),
     };

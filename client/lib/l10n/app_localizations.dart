@@ -9,7 +9,7 @@ class AppLocalizations {
 
   static const _localizedValues = <String, Map<String, String>>{
     'en': {
-      'appTitle': 'Salim Store Client',
+      'appTitle': 'Livriyes',
       'authChipLogin': 'Customer Login',
       'authChipRegister': 'Customer Registration',
       'authNameLabel': 'Full Name',
@@ -39,7 +39,7 @@ class AppLocalizations {
       'authLanguageSubtitle': 'Switch app language instantly',
       'authLanguageEnglish': 'English',
       'authLanguageFrench': 'French',
-      'authShimmerGreeting': 'Welcome to Salim Store',
+      'authShimmerGreeting': 'Welcome to Livriyes',
       'authLoadingCaption': 'Preparing a delightful experience for you...',
       'authLanguageChanged': 'Language switched to {language}',
       'snackGenericError': 'An unexpected error occurred',
@@ -82,9 +82,95 @@ class AppLocalizations {
       'profileEditProfileTitle': 'Edit profile',
       'profileSave': 'Save',
       'profileUploading': 'Uploading...',
+      // Profile Tab
+      'profileEditInfo': 'Edit my info',
+      'profileEditInfoSubtitle': 'Name, phone, email',
+      'profileChangePassword': 'Change my password',
+      'profileChangePasswordSubtitle': 'Secure your account',
+      'profileMyAddresses': 'My addresses',
+      'profileMyAddressesSubtitle': 'Manage your delivery locations',
+      'profileMyFavorites': 'My favorites',
+      'profileMyFavoritesSubtitle': 'Find your favorites',
+      'profileSupportContact': 'Support and contact',
+      'profileCallButton': 'Call',
+      'profileWebsiteButton': 'Website',
+      'profileEmailButton': 'Email',
+      'profileWhatsAppButton': 'WhatsApp',
+      'profileUpdateInfoTitle': 'Update my information',
+      'profileUpdateInfoSubtitle':
+          'Update your contact details so we can always reach you.',
+      'profileFullNameLabel': 'Full name',
+      'profilePhoneNumberLabel': 'Phone number',
+      'profileEmailLabel': 'Email address',
+      'profileFillAllFields': 'Please fill in all information.',
+      'profileValidEmail': 'Please enter a valid email.',
+      'profileSaveButton': 'Save',
+      'profileUpdatedSuccess': 'Profile updated successfully',
+      'profileChangePasswordTitle': 'Change my password',
+      'profileChangePasswordDesc':
+          'To secure your account, use a unique and confidential password.',
+      'profileCurrentPassword': 'Current password',
+      'profileNewPassword': 'New password',
+      'profileConfirmNewPassword': 'Confirm new password',
+      'profileFillAllPasswordFields': 'Please fill in all fields.',
+      'profilePasswordMinLength': 'New password must be at least 6 characters.',
+      'profilePasswordsDoNotMatch': 'Passwords do not match.',
+      'profilePasswordUpdatedSuccess': 'Password updated successfully',
+      'profileCustomizeAvatar': 'Customize your avatar',
+      'profileUploadPhotoDesc':
+          'Upload a photo from your gallery or capture a new selfie instantly.',
+      'profileGalleryButton': 'Gallery',
+      'profileCameraButton': 'Camera',
+      'profilePhotoUpdateError': 'Unable to update photo: {error}',
+      'profilePhotoUpdatedSuccess': 'Profile photo updated successfully!',
+      'profileCannotOpenPhone': 'Unable to open phone app.',
+      'profileCannotOpenEmail': 'Unable to open email app.',
+      'profileCannotOpenWhatsApp': 'Unable to open WhatsApp.',
+      'profileCannotOpenWebsite': 'Unable to open website.',
+      // Address Management
+      'addressManagementTitle': 'My Addresses',
+      'addressNoAddresses': 'No addresses yet',
+      'addressAddFirst': 'Add your first delivery address',
+      'addressAddNew': 'Add new address',
+      'addressDefault': 'Default',
+      'addressSetAsDefault': 'Set as default',
+      'addressEdit': 'Edit',
+      'addressDelete': 'Delete',
+      'addressDeleteConfirmTitle': 'Delete address',
+      'addressDeleteConfirmMessage':
+          'Are you sure you want to delete this address?',
+      'addressDeletedSuccess': 'Address deleted successfully',
+      'addressSetDefaultSuccess': 'Default address updated',
+      // Address Picker
+      'addressPickerAddTitle': 'Add Address',
+      'addressPickerEditTitle': 'Edit Address',
+      'addressPickerManualMode': 'Manual',
+      'addressPickerAutoMode': 'Auto',
+      'addressPickerSelectOnMap': 'Select your location on the map',
+      'addressPickerDragMarker': 'Drag the marker to adjust your location',
+      'addressPickerMyLocation': 'My location',
+      'addressPickerSaveAddress': 'Save address',
+      'addressPickerSaveDialogTitle': 'Save address',
+      'addressPickerEditDialogTitle': 'Edit address',
+      'addressPickerAddressNameLabel': 'Address name',
+      'addressPickerAddressNameHint': 'E.g.: Home, Office, Delivery...',
+      'addressPickerSetAsDefault': 'Set as default address',
+      'addressPickerEnterName': 'Please enter a name for the address',
+      'addressPickerSavedSuccess': 'Address "{label}" saved successfully',
+      'addressPickerSaveError': 'Error saving: {error}',
+      'addressPickerSelectPosition': 'Please select a position on the map',
+      'addressPickerLocationError': 'Location error: {error}',
+      'addressPickerLocationServicesDisabled':
+          'Location services are disabled.',
+      'addressPickerLocationPermissionDenied':
+          'Location permissions are denied',
+      'addressPickerLocationPermissionDeniedForever':
+          'Location permissions are permanently denied.',
+      'addressPickerDetectingAddress': 'Detecting address...',
+      'addressPickerAddresses': 'Addresses',
     },
     'fr': {
-      'appTitle': 'Client Salim Store',
+      'appTitle': 'Livriyes',
       'authChipLogin': 'Connexion Client',
       'authChipRegister': 'Inscription Client',
       'authNameLabel': 'Nom complet',
@@ -113,10 +199,10 @@ class AppLocalizations {
       'authToggleActionSignUp': 'Connexion',
       'authLanguageLabel': 'Langue',
       'authLanguageSubtitle':
-          'Changez la langue de l’application instantanément',
+          'Changez la langue de l\'application instantanément',
       'authLanguageEnglish': 'Anglais',
       'authLanguageFrench': 'Français',
-      'authShimmerGreeting': 'Bienvenue chez Salim Store',
+      'authShimmerGreeting': 'Bienvenue chez Livriyes',
       'authLoadingCaption':
           'Nous préparons une expérience agréable pour vous...',
       'authLanguageChanged': 'Langue changée en {language}',
@@ -161,6 +247,96 @@ class AppLocalizations {
       'profileEditProfileTitle': 'Modifier le profil',
       'profileSave': 'Enregistrer',
       'profileUploading': 'Téléversement...',
+      // Profile Tab
+      'profileEditInfo': 'Modifier mes infos',
+      'profileEditInfoSubtitle': 'Nom, téléphone, email',
+      'profileChangePassword': 'Changer mon mot de passe',
+      'profileChangePasswordSubtitle': 'Sécurisez votre compte',
+      'profileMyAddresses': 'Mes adresses',
+      'profileMyAddressesSubtitle': 'Gérez vos lieux de livraison',
+      'profileMyFavorites': 'Mes favoris',
+      'profileMyFavoritesSubtitle': 'Retrouvez vos coups de cœur',
+      'profileSupportContact': 'Support et contact',
+      'profileCallButton': 'Appeler',
+      'profileWebsiteButton': 'Site Web',
+      'profileEmailButton': 'Email',
+      'profileWhatsAppButton': 'WhatsApp',
+      'profileUpdateInfoTitle': 'Mettre à jour mes informations',
+      'profileUpdateInfoSubtitle':
+          'Actualisez vos coordonnées afin que nous puissions toujours vous contacter.',
+      'profileFullNameLabel': 'Nom complet',
+      'profilePhoneNumberLabel': 'Numéro de téléphone',
+      'profileEmailLabel': 'Adresse email',
+      'profileFillAllFields': 'Veuillez remplir toutes les informations.',
+      'profileValidEmail': 'Veuillez saisir un email valide.',
+      'profileSaveButton': 'Enregistrer',
+      'profileUpdatedSuccess': 'Profil mis à jour avec succès',
+      'profileChangePasswordTitle': 'Modifier mon mot de passe',
+      'profileChangePasswordDesc':
+          'Pour sécuriser votre compte, utilisez un mot de passe unique et confidentiel.',
+      'profileCurrentPassword': 'Mot de passe actuel',
+      'profileNewPassword': 'Nouveau mot de passe',
+      'profileConfirmNewPassword': 'Confirmer le nouveau mot de passe',
+      'profileFillAllPasswordFields': 'Veuillez remplir tous les champs.',
+      'profilePasswordMinLength':
+          'Le nouveau mot de passe doit contenir au moins 6 caractères.',
+      'profilePasswordsDoNotMatch': 'Les mots de passe ne correspondent pas.',
+      'profilePasswordUpdatedSuccess': 'Mot de passe mis à jour avec succès',
+      'profileCustomizeAvatar': 'Personnalisez votre avatar',
+      'profileUploadPhotoDesc':
+          'Téléversez une photo depuis votre galerie ou capturez un nouveau selfie instantanément.',
+      'profileGalleryButton': 'Galerie',
+      'profileCameraButton': 'Caméra',
+      'profilePhotoUpdateError':
+          'Impossible de mettre à jour la photo: {error}',
+      'profilePhotoUpdatedSuccess': 'Photo de profil mise à jour avec succès !',
+      'profileCannotOpenPhone': 'Impossible d`ouvrir l\'application téléphone.',
+      'profileCannotOpenEmail': 'Impossible d\'ouvrir l\'application mail.',
+      'profileCannotOpenWhatsApp': 'Impossible d\'ouvrir WhatsApp.',
+      'profileCannotOpenWebsite': 'Impossible d\'ouvrir le site web.',
+      // Address Management
+      'addressManagementTitle': 'Mes Adresses',
+      'addressNoAddresses': 'Aucune adresse pour le moment',
+      'addressAddFirst': 'Ajoutez votre première adresse de livraison',
+      'addressAddNew': 'Ajouter une nouvelle adresse',
+      'addressDefault': 'Par défaut',
+      'addressSetAsDefault': 'Définir par défaut',
+      'addressEdit': 'Modifier',
+      'addressDelete': 'Supprimer',
+      'addressDeleteConfirmTitle': 'Supprimer l\'adresse',
+      'addressDeleteConfirmMessage':
+          'Êtes-vous sûr de vouloir supprimer cette adresse ?',
+      'addressDeletedSuccess': 'Adresse supprimée avec succès',
+      'addressSetDefaultSuccess': 'Adresse par défaut mise à jour',
+      // Address Picker
+      'addressPickerAddTitle': 'Ajouter une adresse',
+      'addressPickerEditTitle': 'Modifier l\'adresse',
+      'addressPickerManualMode': 'Manuel',
+      'addressPickerAutoMode': 'Auto',
+      'addressPickerSelectOnMap': 'Sélectionnez votre position sur la carte',
+      'addressPickerDragMarker':
+          'Faites glisser le marqueur pour ajuster votre position',
+      'addressPickerMyLocation': 'Ma position',
+      'addressPickerSaveAddress': 'Enregistrer l\'adresse',
+      'addressPickerSaveDialogTitle': 'Enregistrer l\'adresse',
+      'addressPickerEditDialogTitle': 'Modifier l\'adresse',
+      'addressPickerAddressNameLabel': 'Nom de l\'adresse',
+      'addressPickerAddressNameHint': 'Ex: Maison, Bureau, Livraison...',
+      'addressPickerSetAsDefault': 'Définir comme adresse par défaut',
+      'addressPickerEnterName': 'Veuillez entrer un nom pour l\'adresse',
+      'addressPickerSavedSuccess': 'Adresse "{label}" enregistrée avec succès',
+      'addressPickerSaveError': 'Erreur lors de l\'enregistrement: {error}',
+      'addressPickerSelectPosition':
+          'Veuillez sélectionner une position sur la carte',
+      'addressPickerLocationError': 'Erreur localisation: {error}',
+      'addressPickerLocationServicesDisabled':
+          'Les services de localisation sont désactivés.',
+      'addressPickerLocationPermissionDenied':
+          'Les permissions de localisation sont refusées',
+      'addressPickerLocationPermissionDeniedForever':
+          'Les permissions de localisation sont définitivement refusées.',
+      'addressPickerDetectingAddress': 'Détection de l\'adresse...',
+      'addressPickerAddresses': 'Adresses',
     },
   };
 
@@ -252,6 +428,105 @@ class AppLocalizations {
   String get profileEditProfileTitle => _text('profileEditProfileTitle');
   String get profileSave => _text('profileSave');
   String get profileUploading => _text('profileUploading');
+
+  // Profile Tab getters
+  String get profileEditInfo => _text('profileEditInfo');
+  String get profileEditInfoSubtitle => _text('profileEditInfoSubtitle');
+  String get profileChangePassword => _text('profileChangePassword');
+  String get profileChangePasswordSubtitle =>
+      _text('profileChangePasswordSubtitle');
+  String get profileMyAddresses => _text('profileMyAddresses');
+  String get profileMyAddressesSubtitle => _text('profileMyAddressesSubtitle');
+  String get profileMyFavorites => _text('profileMyFavorites');
+  String get profileMyFavoritesSubtitle => _text('profileMyFavoritesSubtitle');
+  String get profileSupportContact => _text('profileSupportContact');
+  String get profileCallButton => _text('profileCallButton');
+  String get profileWebsiteButton => _text('profileWebsiteButton');
+  String get profileEmailButton => _text('profileEmailButton');
+  String get profileWhatsAppButton => _text('profileWhatsAppButton');
+  String get profileUpdateInfoTitle => _text('profileUpdateInfoTitle');
+  String get profileUpdateInfoSubtitle => _text('profileUpdateInfoSubtitle');
+  String get profileFullNameLabel => _text('profileFullNameLabel');
+  String get profilePhoneNumberLabel => _text('profilePhoneNumberLabel');
+  String get profileEmailLabel => _text('profileEmailLabel');
+  String get profileFillAllFields => _text('profileFillAllFields');
+  String get profileValidEmail => _text('profileValidEmail');
+  String get profileSaveButton => _text('profileSaveButton');
+  String get profileUpdatedSuccess => _text('profileUpdatedSuccess');
+  String get profileChangePasswordTitle => _text('profileChangePasswordTitle');
+  String get profileChangePasswordDesc => _text('profileChangePasswordDesc');
+  String get profileCurrentPassword => _text('profileCurrentPassword');
+  String get profileNewPassword => _text('profileNewPassword');
+  String get profileConfirmNewPassword => _text('profileConfirmNewPassword');
+  String get profileFillAllPasswordFields =>
+      _text('profileFillAllPasswordFields');
+  String get profilePasswordMinLength => _text('profilePasswordMinLength');
+  String get profilePasswordsDoNotMatch => _text('profilePasswordsDoNotMatch');
+  String get profilePasswordUpdatedSuccess =>
+      _text('profilePasswordUpdatedSuccess');
+  String get profileCustomizeAvatar => _text('profileCustomizeAvatar');
+  String get profileUploadPhotoDesc => _text('profileUploadPhotoDesc');
+  String get profileGalleryButton => _text('profileGalleryButton');
+  String get profileCameraButton => _text('profileCameraButton');
+  String profilePhotoUpdateErrorMessage(String error) =>
+      _text('profilePhotoUpdateError').replaceAll('{error}', error);
+  String get profilePhotoUpdatedSuccess => _text('profilePhotoUpdatedSuccess');
+  String get profileCannotOpenPhone => _text('profileCannotOpenPhone');
+  String get profileCannotOpenEmail => _text('profileCannotOpenEmail');
+  String get profileCannotOpenWhatsApp => _text('profileCannotOpenWhatsApp');
+  String get profileCannotOpenWebsite => _text('profileCannotOpenWebsite');
+
+  // Address Management getters
+  String get addressManagementTitle => _text('addressManagementTitle');
+  String get addressNoAddresses => _text('addressNoAddresses');
+  String get addressAddFirst => _text('addressAddFirst');
+  String get addressAddNew => _text('addressAddNew');
+  String get addressDefault => _text('addressDefault');
+  String get addressSetAsDefault => _text('addressSetAsDefault');
+  String get addressEdit => _text('addressEdit');
+  String get addressDelete => _text('addressDelete');
+  String get addressDeleteConfirmTitle => _text('addressDeleteConfirmTitle');
+  String get addressDeleteConfirmMessage =>
+      _text('addressDeleteConfirmMessage');
+  String get addressDeletedSuccess => _text('addressDeletedSuccess');
+  String get addressSetDefaultSuccess => _text('addressSetDefaultSuccess');
+
+  // Address Picker getters
+  String get addressPickerAddTitle => _text('addressPickerAddTitle');
+  String get addressPickerEditTitle => _text('addressPickerEditTitle');
+  String get addressPickerManualMode => _text('addressPickerManualMode');
+  String get addressPickerAutoMode => _text('addressPickerAutoMode');
+  String get addressPickerSelectOnMap => _text('addressPickerSelectOnMap');
+  String get addressPickerDragMarker => _text('addressPickerDragMarker');
+  String get addressPickerMyLocation => _text('addressPickerMyLocation');
+  String get addressPickerSaveAddress => _text('addressPickerSaveAddress');
+  String get addressPickerSaveDialogTitle =>
+      _text('addressPickerSaveDialogTitle');
+  String get addressPickerEditDialogTitle =>
+      _text('addressPickerEditDialogTitle');
+  String get addressPickerAddressNameLabel =>
+      _text('addressPickerAddressNameLabel');
+  String get addressPickerAddressNameHint =>
+      _text('addressPickerAddressNameHint');
+  String get addressPickerSetAsDefault => _text('addressPickerSetAsDefault');
+  String get addressPickerEnterName => _text('addressPickerEnterName');
+  String addressPickerSavedSuccessMessage(String label) =>
+      _text('addressPickerSavedSuccess').replaceAll('{label}', label);
+  String addressPickerSaveErrorMessage(String error) =>
+      _text('addressPickerSaveError').replaceAll('{error}', error);
+  String get addressPickerSelectPosition =>
+      _text('addressPickerSelectPosition');
+  String addressPickerLocationErrorMessage(String error) =>
+      _text('addressPickerLocationError').replaceAll('{error}', error);
+  String get addressPickerLocationServicesDisabled =>
+      _text('addressPickerLocationServicesDisabled');
+  String get addressPickerLocationPermissionDenied =>
+      _text('addressPickerLocationPermissionDenied');
+  String get addressPickerLocationPermissionDeniedForever =>
+      _text('addressPickerLocationPermissionDeniedForever');
+  String get addressPickerDetectingAddress =>
+      _text('addressPickerDetectingAddress');
+  String get addressPickerAddresses => _text('addressPickerAddresses');
 
   String addressCountLabel(int count) {
     if (count == 0) return profileMenuAddressesEmpty;

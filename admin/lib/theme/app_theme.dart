@@ -24,7 +24,7 @@ class AppTheme {
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [primaryColor, secondaryColor],
+    colors: [Color(0xFF11AB2F), Color(0xFF67DF47)],
   );
 
   static const LinearGradient backgroundGradient = LinearGradient(
@@ -38,18 +38,22 @@ class AppTheme {
   static String formatCurrency(
     num amount, {
     String symbol = '€',
-    int decimalDigits = 2,
+    int? decimalDigits,
     String locale = 'fr_FR',
   }) {
     final key = '$locale|$symbol|$decimalDigits';
-    final formatter = _currencyFormatters.putIfAbsent(
-      key,
-      () => NumberFormat.currency(
+    final formatter = _currencyFormatters.putIfAbsent(key, () {
+      final f = NumberFormat.currency(
         locale: locale,
         symbol: symbol,
         decimalDigits: decimalDigits,
-      ),
-    );
+      );
+      if (decimalDigits == null) {
+        f.minimumFractionDigits = 0;
+        f.maximumFractionDigits = 10;
+      }
+      return f;
+    });
     return formatter.format(amount);
   }
 

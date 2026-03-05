@@ -3,6 +3,7 @@ class Product {
   final String name;
   final String description;
   final double price;
+  final String priceUnit; // Added field
   final String imageUrl;
   final double rating;
   final int reviewCount;
@@ -20,6 +21,7 @@ class Product {
     required this.name,
     required this.description,
     required this.price,
+    this.priceUnit = '1kg', // Added with default
     required this.imageUrl,
     required this.rating,
     required this.reviewCount,
@@ -49,12 +51,20 @@ class Product {
       return DateTime.now();
     }
 
+    final dynamic rawImage =
+        json['imageUrl'] ??
+        json['imageURL'] ??
+        json['image_url'] ??
+        json['image'];
+    final String imageUrl = (rawImage ?? '').toString().trim();
+
     return Product(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       price: (json['price'] ?? 0).toDouble(),
-      imageUrl: json['imageUrl'] ?? '',
+      priceUnit: json['priceUnit'] ?? '1kg',
+      imageUrl: imageUrl,
       rating: (json['rating'] ?? 0.0).toDouble(),
       reviewCount: json['reviewCount'] ?? 0,
       categoryId: json['categoryId'] ?? '',
@@ -80,6 +90,7 @@ class Product {
       'name': name,
       'description': description,
       'price': price,
+      'priceUnit': priceUnit,
       'imageUrl': imageUrl,
       'rating': rating,
       'reviewCount': reviewCount,
@@ -104,6 +115,7 @@ class Category {
   final String? iconUrl;
   final List<String> subCategoryIds;
   final DateTime createdAt;
+  final int order;
 
   Category({
     required this.id,
@@ -114,6 +126,7 @@ class Category {
     this.iconUrl,
     required this.subCategoryIds,
     required this.createdAt,
+    this.order = 0,
   });
 
   factory Category.fromJson(Map<String, dynamic> json) {
@@ -153,6 +166,7 @@ class Category {
       iconUrl: json['iconUrl']?.toString(),
       subCategoryIds: subCategoryIdsList,
       createdAt: _parseDateTime(json['createdAt']),
+      order: json['order'] ?? 0,
     );
   }
 
@@ -166,6 +180,7 @@ class Category {
       'iconUrl': iconUrl,
       'subCategoryIds': subCategoryIds,
       'createdAt': createdAt.toIso8601String(),
+      'order': order,
     };
   }
 }
@@ -175,6 +190,7 @@ class SubCategory {
   final String name;
   final String description;
   final String categoryId;
+  final String? imageUrl;
   final List<String> productIds;
   final DateTime createdAt;
 
@@ -183,18 +199,47 @@ class SubCategory {
     required this.name,
     required this.description,
     required this.categoryId,
+    this.imageUrl,
     required this.productIds,
     required this.createdAt,
   });
 
   factory SubCategory.fromJson(Map<String, dynamic> json) {
+    DateTime _parseDateTime(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is String) {
+        try {
+          return DateTime.parse(value);
+        } catch (_) {
+          return DateTime.now();
+        }
+      }
+      if (value is int) {
+        return DateTime.fromMillisecondsSinceEpoch(value);
+      }
+      return DateTime.now();
+    }
+
+    // Handle productIds - could be a list or a map
+    List<String> productIdsList = [];
+    if (json['productIds'] != null) {
+      if (json['productIds'] is List) {
+        productIdsList = List<String>.from(json['productIds']);
+      } else if (json['productIds'] is Map) {
+        // If it's a map, extract values
+        final map = json['productIds'] as Map;
+        productIdsList = map.values.map((e) => e.toString()).toList();
+      }
+    }
+
     return SubCategory(
-      id: json['id'],
-      name: json['name'],
-      description: json['description'],
-      categoryId: json['categoryId'],
-      productIds: List<String>.from(json['productIds']),
-      createdAt: DateTime.parse(json['createdAt']),
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      categoryId: json['categoryId']?.toString() ?? '',
+      imageUrl: json['imageUrl']?.toString(),
+      productIds: productIdsList,
+      createdAt: _parseDateTime(json['createdAt']),
     );
   }
 
@@ -204,6 +249,7 @@ class SubCategory {
       'name': name,
       'description': description,
       'categoryId': categoryId,
+      'imageUrl': imageUrl,
       'productIds': productIds,
       'createdAt': createdAt.toIso8601String(),
     };

@@ -1,15 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../firebase_options.dart';
 
 class AddressService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final FirebaseDatabase _database = FirebaseDatabase.instanceFor(
-    app: Firebase.app(),
-    databaseURL: DefaultFirebaseOptions.currentPlatform.databaseURL,
-  );
+  static final FirebaseDatabase _database = FirebaseDatabase.instance;
 
   static DatabaseReference _addressesRef(String userId) {
     return _database.ref('users/$userId/addresses');

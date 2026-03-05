@@ -6,6 +6,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/design_tokens.dart';
 import '../../services/realtime_database_service.dart';
 import '../../firebase_options.dart';
+import '../../widgets/delivery_prices_dialog.dart';
 
 class DashboardTab extends StatefulWidget {
   final Function(int)? onNavigateToTab;
@@ -914,6 +915,13 @@ class _DashboardTabState extends State<DashboardTab> {
         'color': const Color(0xFF14B8A6),
         'tab': 6,
       },
+      {
+        'title': 'Prix de livraison',
+        'subtitle': 'Editez les frais de port',
+        'icon': Icons.local_shipping_rounded,
+        'color': const Color(0xFFEF4444),
+        'action': 'set_prices',
+      },
     ];
 
     return LayoutBuilder(
@@ -973,11 +981,18 @@ class _DashboardTabState extends State<DashboardTab> {
                             child: InkWell(
                               borderRadius: BorderRadius.circular(AppRadii.lg),
                               onTap: () {
-                                final callback = widget.onNavigateToTab;
-                                if (callback != null) {
-                                  callback(action['tab'] as int);
-                                } else {
-                                  _navigateToTab(context, action['tab'] as int);
+                                if (action.containsKey('tab')) {
+                                  final callback = widget.onNavigateToTab;
+                                  if (callback != null) {
+                                    callback(action['tab'] as int);
+                                  } else {
+                                    _navigateToTab(
+                                      context,
+                                      action['tab'] as int,
+                                    );
+                                  }
+                                } else if (action['action'] == 'set_prices') {
+                                  DeliveryPricesDialog.show(context);
                                 }
                               },
                               child: Row(

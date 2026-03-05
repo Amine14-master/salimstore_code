@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:lottie/lottie.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -145,213 +144,241 @@ class _SupportContactSection extends StatefulWidget {
 }
 
 class _SupportContactSectionState extends State<_SupportContactSection> {
-  final TextEditingController _messageCtrl = TextEditingController();
-  bool _sending = false;
-
-  @override
-  void dispose() {
-    _messageCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _onSendPressed() async {
-    FocusScope.of(context).unfocus();
-    final message = _messageCtrl.text.trim();
+  Future<void> _callSupport() async {
     final uri = Uri(
-      scheme: 'mailto',
-      path: ContactSupportConfig.supportEmail,
-      queryParameters: {
-        'subject': 'Assistance SalimStore',
-        if (message.isNotEmpty) 'body': message,
-      },
+      scheme: 'tel',
+      path: '+213${ContactSupportConfig.supportPhone.replaceFirst('0', '')}',
     );
-
-    setState(() => _sending = true);
-    try {
-      final success = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-
-      if (!mounted) return;
-
-      if (success) {
-        _messageCtrl.clear();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Votre messagerie s\'ouvre pour rédiger le message.'),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Impossible d\'ouvrir l\'application mail.'),
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
+    final ok = await launchUrl(uri);
+    if (!context.mounted) return;
+    if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur lors de l\'ouverture du mail: $e')),
+        const SnackBar(
+          content: Text('Impossible d\'ouvrir l\'application téléphone.'),
+        ),
       );
-    } finally {
-      if (mounted) {
-        setState(() => _sending = false);
-      }
     }
   }
 
-  Future<void> _copyEmail() async {
-    await Clipboard.setData(
-      ClipboardData(text: ContactSupportConfig.supportEmail),
+  Future<void> _openWhatsApp() async {
+    final uri = Uri.parse(
+      'https://wa.me/213${ContactSupportConfig.supportWhatsApp.replaceFirst('0', '')}',
     );
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Adresse email copiée')));
+    final ok = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!context.mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible d\'ouvrir WhatsApp.'),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    final animationWidget = DecoratedBox(
+    return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFEEF2FF), Color(0xFFD8E7FF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
+          colors: [Color(0xFFF0F4FF), Color(0xFFE8F5FF)],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Lottie.network(
-          'https://assets10.lottiefiles.com/packages/lf20_t24tpvcu.json',
-          height: widget.isDesktop ? 220 : 180,
-          frameRate: FrameRate.max,
-          repeat: true,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => const Icon(
-            Icons.support_agent,
-            size: 72,
-            color: AppTheme.primaryColor,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.support_agent_rounded,
+                  color: AppTheme.primaryColor,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Support & Assistance',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Nous sommes là pour vous aider',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ),
-      ),
-    );
-
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Support & assistance',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
+          const SizedBox(height: 24),
+          // Contact Methods Grid
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.1,
+            children: [
+              _ContactMethodCard(
+                icon: Icons.phone_rounded,
+                label: 'Appeler',
+                color: const Color(0xFF4CAF50),
+                onTap: _callSupport,
+              ),
+              _ContactMethodCard(
+                icon: Icons.email_rounded,
+                label: 'Email',
+                color: const Color(0xFF2196F3),
+                onTap: () async {
+                  final uri = ContactSupportConfig.buildSupportEmailUri();
+                  await launchUrl(
+                    uri,
+                    mode: LaunchMode.externalApplication,
+                  );
+                },
+              ),
+              _ContactMethodCard(
+                icon: Icons.chat_bubble_rounded,
+                label: 'WhatsApp',
+                color: const Color(0xFF25D366),
+                onTap: _openWhatsApp,
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Besoin d\'aide ? Notre équipe répond rapidement à vos questions et vous accompagne dans la gestion de votre boutique.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 18),
-        Shimmer.fromColors(
-          baseColor: AppTheme.primaryColor.withOpacity(0.85),
-          highlightColor: Colors.white,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              gradient: const LinearGradient(
-                colors: [AppTheme.primaryColor, AppTheme.accentColor],
+          const SizedBox(height: 24),
+          // Email Display with Shimmer
+          Shimmer.fromColors(
+            baseColor: AppTheme.primaryColor.withOpacity(0.6),
+            highlightColor: Colors.white,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppTheme.primaryColor, AppTheme.accentColor],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.mail_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      ContactSupportConfig.supportEmail,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.alternate_email, color: Colors.white),
-                const SizedBox(width: 8),
-                Text(
-                  ContactSupportConfig.supportEmail,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.15);
+  }
+}
+
+class _ContactMethodCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ContactMethodCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color.withOpacity(0.15),
+                color.withOpacity(0.08),
               ],
             ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'Décrivez votre demande',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _messageCtrl,
-          maxLines: 4,
-          minLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Comment pouvons-nous vous aider ?',
-            prefixIcon: Icon(Icons.edit_note_rounded),
-          ),
-        ),
-        const SizedBox(height: 18),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            FilledButton.icon(
-              onPressed: _sending ? null : _onSendPressed,
-              icon: _sending
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.send_rounded),
-              label: Text(_sending ? 'Ouverture...' : 'Envoyer un email'),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: color.withOpacity(0.3),
+              width: 1.5,
             ),
-            OutlinedButton.icon(
-              onPressed: _copyEmail,
-              icon: const Icon(Icons.copy_rounded),
-              label: const Text('Copier l\'adresse'),
-            ),
-          ],
-        ),
-      ],
-    );
-
-    final cardChild = widget.isDesktop
-        ? Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(child: content),
-              const SizedBox(width: 28),
-              SizedBox(width: 220, child: animationWidget),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ],
-          )
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [animationWidget, const SizedBox(height: 20), content],
-          );
-
-    return CustomCard(
-      padding: EdgeInsets.symmetric(
-        horizontal: widget.isDesktop ? 30 : 20,
-        vertical: widget.isDesktop ? 28 : 22,
+          ),
+        ),
       ),
-      child: cardChild,
-    ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.12);
+    );
   }
 }
 
@@ -478,57 +505,119 @@ class _EditableInfoSectionState extends State<_EditableInfoSection> {
 
   @override
   Widget build(BuildContext context) {
-    return CustomCard(
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFAFCFF), Color(0xFFF0F8FF)],
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.info_outline, color: AppTheme.primaryColor),
-              const SizedBox(width: 8),
-              Text(
-                'Informations du compte',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.person_outline_rounded,
+                  color: AppTheme.primaryColor,
+                  size: 28,
+                ),
               ),
-              const Spacer(),
-              IconButton(
-                onPressed: () => setState(() => _editing = !_editing),
-                icon: Icon(_editing ? Icons.check_rounded : Icons.edit),
-                color: AppTheme.primaryColor,
-                tooltip: _editing ? 'Terminer' : 'Modifier',
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Informations du compte',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                decoration: BoxDecoration(
+                  color: _editing
+                      ? AppTheme.primaryColor
+                      : AppTheme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  onPressed: () => setState(() => _editing = !_editing),
+                  icon: Icon(
+                    _editing ? Icons.check_rounded : Icons.edit_rounded,
+                    color: _editing ? Colors.white : AppTheme.primaryColor,
+                  ),
+                  tooltip: _editing ? 'Terminer' : 'Modifier',
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          _buildField('Nom', Icons.badge_rounded, _nameCtrl, enabled: _editing),
-          const SizedBox(height: 10),
-          _buildField(
-            'Email',
-            Icons.email_rounded,
-            _emailCtrl,
-            enabled: _editing,
-          ),
-          const SizedBox(height: 10),
-          _buildField(
-            'Téléphone',
-            Icons.phone_rounded,
-            _phoneCtrl,
-            enabled: _editing,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _editing
-                ? 'Les modifications ne sont pas encore enregistrées.'
-                : 'Les informations sont d\'exemple (non enregistrées).',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
+          const SizedBox(height: 24),
+          _buildField('Nom complet', Icons.person_rounded, _nameCtrl,
+              enabled: _editing),
+          const SizedBox(height: 16),
+          _buildField('Adresse email', Icons.email_rounded, _emailCtrl,
+              enabled: _editing),
+          const SizedBox(height: 16),
+          _buildField('Téléphone', Icons.phone_rounded, _phoneCtrl,
+              enabled: _editing),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _editing
+                  ? const Color(0xFFFFF3CD)
+                  : const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _editing
+                    ? const Color(0xFFFFD700).withOpacity(0.3)
+                    : const Color(0xFF4CAF50).withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _editing ? Icons.info_rounded : Icons.check_circle_rounded,
+                  color: _editing
+                      ? const Color(0xFFFFA500)
+                      : const Color(0xFF4CAF50),
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _editing
+                        ? 'Les modifications ne sont pas encore enregistrées.'
+                        : 'Les informations sont d\'exemple (non enregistrées).',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-    );
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.15);
   }
 
   Widget _buildField(
@@ -537,10 +626,41 @@ class _EditableInfoSectionState extends State<_EditableInfoSection> {
     TextEditingController controller, {
     bool enabled = false,
   }) {
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: enabled
+              ? AppTheme.primaryColor.withOpacity(0.3)
+              : Colors.grey.withOpacity(0.2),
+          width: 1.5,
+        ),
+      ),
+      child: TextField(
+        controller: controller,
+        enabled: enabled,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(
+            icon,
+            color: enabled ? AppTheme.primaryColor : Colors.grey,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+          labelStyle: TextStyle(
+            color: enabled ? AppTheme.primaryColor : Colors.grey,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        style: TextStyle(
+          color: AppTheme.textPrimary,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 }

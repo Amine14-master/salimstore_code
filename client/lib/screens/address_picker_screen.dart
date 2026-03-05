@@ -6,10 +6,14 @@ import 'package:geocoding/geocoding.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../services/address_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../theme/app_theme.dart';
 
 class AddressPickerScreen extends StatefulWidget {
-  const AddressPickerScreen({super.key});
+  final Map<String, dynamic>? existingAddress;
+
+  const AddressPickerScreen({super.key, this.existingAddress});
   @override
   State<AddressPickerScreen> createState() => _AddressPickerScreenState();
 }
@@ -19,16 +23,26 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
   int _mode = 0;
   bool _loadingLocation = false;
   LatLng? _selectedLocation;
-  LatLng _currentLocation = LatLng(36.7538, 3.0588);
+  LatLng _currentLocation = LatLng(36.1538, 3.1588);
   String? _mapSelectedAddress;
   final MapController _mapController = MapController();
   final Completer<void> _mapReadyCompleter = Completer<void>();
-  StreamSubscription<MapEvent>? _mapReadySubscription;
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _searchResults = [];
+  bool _isSearching = false;
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
-    _mapReadySubscription = _mapController.mapEventStream.listen((event) {
+    _mapController.mapEventStream.listen((event) {
       if (!_mapReadyCompleter.isCompleted) {
         _mapReadyCompleter.complete();
       }
@@ -48,16 +62,25 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
   }
 
   Future<void> _initializeLocation() async {
-    if (_mode == 1) return;
-    try {
-      await _getCurrentLocation();
-    } catch (e) {
-      print('Error initializing location: $e');
-      setState(() {
-        _currentLocation = LatLng(36.7538, 3.0588);
-        _selectedLocation = _currentLocation;
-      });
+    if (widget.existingAddress != null) {
+      final lat = widget.existingAddress!['latitude'];
+      final lng = widget.existingAddress!['longitude'];
+      if (lat != null && lng != null) {
+        _selectedLocation = LatLng(lat, lng);
+        _mapSelectedAddress = widget.existingAddress!['fullAddress'];
+        _currentLocation = _selectedLocation!;
+        // Wait for map to be ready then move
+        _moveMap(_selectedLocation!, 15.0);
+        return;
+      }
     }
+
+    if (_mode == 1) return;
+    // Removed auto-fetch to speed up loading
+    // We just start at default location
+    setState(() {
+      _currentLocation = LatLng(36.7515, 5.0550); // Bejaia
+    });
   }
 
   Future<void> _moveMap(LatLng target, [double zoom = 15.0]) async {
@@ -70,31 +93,93 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
     }
   }
 
-  Future<void> _getCurrentLocation() async {
+  Future<void> _getCurrentLocation({bool onlyCenter = false}) async {
     setState(() => _loadingLocation = true);
     try {
+      bool serviceEnabled;
+      LocationPermission permission;
+
+      // Test if location services are enabled.
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Les services de localisation sont désactivés.');
+      }
+
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw Exception('Les permissions de localisation sont refusées');
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception(
+          'Les permissions de localisation sont définitivement refusées.',
+        );
+      }
+
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 10),
       );
+
+      if (!mounted) return;
+
       setState(() {
         _currentLocation = LatLng(position.latitude, position.longitude);
-        _selectedLocation = _currentLocation;
+        if (!onlyCenter) {
+          _selectedLocation = _currentLocation;
+        }
         _loadingLocation = false;
       });
       await _moveMap(_currentLocation, 15.0);
-      await _detectAddressFromLocation(_currentLocation);
+      if (!onlyCenter) {
+        await _detectAddressFromLocation(_currentLocation);
+      }
     } catch (e) {
       setState(() => _loadingLocation = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur localisation: ${e.toString()}'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
+        final errorMsg = e.toString();
+        if (errorMsg.contains('définitivement refusées') ||
+            errorMsg.contains('permanently denied')) {
+          _showPermissionDialog();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur localisation: $errorMsg'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
       }
     }
+  }
+
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Permission requise'),
+        content: const Text(
+          'L\'accès à la localisation est nécessaire pour détecter votre position. Veuillez activer la localisation dans les paramètres de l\'application.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Geolocator.openAppSettings();
+            },
+            child: const Text('Ouvrir les paramètres'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _detectAddressFromLocation(LatLng location) async {
@@ -145,6 +230,61 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
     }
   }
 
+  Future<void> _searchAddress(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() => _searchResults = []);
+      return;
+    }
+
+    setState(() => _isSearching = true);
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?q=$query&format=json&addressdetails=1&limit=5&countrycodes=dz',
+      );
+      final response = await http.get(
+        url,
+        headers: {'User-Agent': 'com.salimstore.client'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _searchResults = List<Map<String, dynamic>>.from(data);
+          _isSearching = false;
+        });
+      } else {
+        setState(() {
+          _searchResults = [];
+          _isSearching = false;
+        });
+      }
+    } catch (e) {
+      print('Error searching address: $e');
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+    }
+  }
+
+  Future<void> _selectSearchedLocation(Map<String, dynamic> location) async {
+    final lat = double.tryParse(location['lat'].toString()) ?? 0.0;
+    final lon = double.tryParse(location['lon'].toString()) ?? 0.0;
+    final latlng = LatLng(lat, lon);
+
+    setState(() {
+      _selectedLocation = latlng;
+      _currentLocation = latlng;
+      _mapSelectedAddress = location['display_name'];
+      _searchResults = [];
+      _searchController.clear();
+      FocusScope.of(context).unfocus();
+    });
+    await _moveMap(latlng);
+    // We already have the address from Nominatim, but we can refine it or just use it.
+    // _detectAddressFromLocation(latlng); // Optional: if we want to stick to geocoding format
+  }
+
   Future<void> _saveMapAddress() async {
     if (_mapSelectedAddress != null && _selectedLocation != null) {
       // Show dialog to name the address
@@ -158,17 +298,32 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
         final fullAddress = _mapSelectedAddress!;
         final parts = fullAddress.split(', ');
 
-        await AddressService.addAddress({
+        final addressData = {
           'wilaya': parts.isNotEmpty ? parts[0] : '',
           'commune': parts.length > 1 ? parts[1] : '',
           'fullAddress': fullAddress,
           'label': addressLabel,
           'latitude': _selectedLocation!.latitude,
           'longitude': _selectedLocation!.longitude,
-        });
+        };
 
-        if (setAsDefault) {
-          await AddressService.setDefaultAddress(fullAddress);
+        if (widget.existingAddress != null) {
+          // Update existing
+          await AddressService.updateAddress(
+            widget.existingAddress!['id'],
+            addressData,
+          );
+          if (setAsDefault) {
+            await AddressService.setDefaultAddress(
+              widget.existingAddress!['id'],
+            );
+          }
+        } else {
+          // Add new
+          final newId = await AddressService.addAddress(addressData);
+          if (setAsDefault && newId != null) {
+            await AddressService.setDefaultAddress(newId);
+          }
         }
 
         if (mounted) {
@@ -206,8 +361,12 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
   }
 
   Future<Map<String, dynamic>?> _showSaveAddressDialog() async {
-    final labelController = TextEditingController();
-    bool setAsDefault = false;
+    final labelController = TextEditingController(
+      text: widget.existingAddress != null
+          ? widget.existingAddress!['label']
+          : '',
+    );
+    bool setAsDefault = false; // Default to false
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -230,10 +389,15 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Enregistrer l\'adresse',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  widget.existingAddress != null
+                      ? 'Modifier l\'adresse'
+                      : 'Enregistrer l\'adresse',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -297,34 +461,49 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (labelController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Veuillez entrer un nom pour l\'adresse'),
-                      backgroundColor: AppTheme.errorColor,
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                  );
-                  return;
-                }
-                Navigator.pop(context, {
-                  'label': labelController.text.trim(),
-                  'setAsDefault': setAsDefault,
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                    child: const Text('Annuler'),
+                  ),
                 ),
-              ),
-              child: const Text('Enregistrer'),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (labelController.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Veuillez entrer un nom pour l\'adresse',
+                            ),
+                            backgroundColor: AppTheme.errorColor,
+                          ),
+                        );
+                        return;
+                      }
+                      Navigator.pop(context, {
+                        'label': labelController.text.trim(),
+                        'setAsDefault': setAsDefault,
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('Enregistrer'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -340,7 +519,11 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Sélectionner une adresse'),
+        title: Text(
+          widget.existingAddress != null
+              ? 'Modifier l\'adresse'
+              : 'Sélectionner une adresse',
+        ),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -431,6 +614,103 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                if (_mode == 0) // Manual mode: show search
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Rechercher une adresse...',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: _isSearching
+                                ? const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          onSubmitted: _searchAddress,
+                          onChanged: (value) {
+                            if (_debounce?.isActive ?? false)
+                              _debounce!.cancel();
+                            _debounce = Timer(
+                              const Duration(milliseconds: 500),
+                              () {
+                                if (value.trim().isNotEmpty) {
+                                  _searchAddress(value);
+                                } else {
+                                  setState(() {
+                                    _searchResults = [];
+                                    _isSearching = false;
+                                  });
+                                }
+                              },
+                            );
+                          },
+                        ),
+                        if (_searchResults.isNotEmpty)
+                          Container(
+                            constraints: const BoxConstraints(maxHeight: 200),
+                            margin: const EdgeInsets.only(top: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: _searchResults.length,
+                              separatorBuilder: (context, index) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final location = _searchResults[index];
+                                return ListTile(
+                                  leading: const Icon(
+                                    Icons.location_on_outlined,
+                                    size: 20,
+                                  ),
+                                  title: Text(
+                                    location['display_name'] ??
+                                        'Adresse inconnue',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  onTap: () =>
+                                      _selectSearchedLocation(location),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 if (_mode == 1) // Auto mode: show detection button
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -571,7 +851,11 @@ class _AddressPickerScreenState extends State<AddressPickerScreen> {
                           child: ElevatedButton.icon(
                             onPressed: _saveMapAddress,
                             icon: const Icon(Icons.save_rounded),
-                            label: const Text('Enregistrer cette adresse'),
+                            label: Text(
+                              widget.existingAddress != null
+                                  ? 'Mettre à jour l\'adresse'
+                                  : 'Enregistrer cette adresse',
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.primaryColor,
                               foregroundColor: Colors.white,

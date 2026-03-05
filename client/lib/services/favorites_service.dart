@@ -1,16 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../firebase_options.dart';
 
 class FavoritesService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final FirebaseDatabase _database = FirebaseDatabase.instanceFor(
-    app: Firebase.app(),
-    databaseURL: DefaultFirebaseOptions.currentPlatform.databaseURL,
-  );
+  static final FirebaseDatabase _database = FirebaseDatabase.instance;
   static const String _localKey = 'favorite_products';
 
   static DatabaseReference _favoritesRef(String userId) {

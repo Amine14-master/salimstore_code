@@ -14,211 +14,6 @@ import '../../theme/app_theme.dart';
 import '../../widgets/admin_search_bar.dart';
 import '../../firebase_options.dart';
 
-enum _DeliveryCodeValidation { success, missing, mismatch }
-
-class _AdminDeliveryValidationSheet extends StatefulWidget {
-  const _AdminDeliveryValidationSheet({required this.onConfirm});
-
-  final Future<_DeliveryCodeValidation> Function(String code) onConfirm;
-
-  @override
-  State<_AdminDeliveryValidationSheet> createState() =>
-      _AdminDeliveryValidationSheetState();
-}
-
-class _AdminDeliveryValidationSheetState
-    extends State<_AdminDeliveryValidationSheet> {
-  final TextEditingController _codeController = TextEditingController();
-  bool _submitting = false;
-  String? _error;
-
-  @override
-  void dispose() {
-    _codeController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleValidation() async {
-    final input = _codeController.text.trim();
-    if (input.length != 4) {
-      setState(() {
-        _error = 'Veuillez saisir un code à 4 chiffres.';
-      });
-      return;
-    }
-
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-
-    try {
-      final result = await widget.onConfirm(input);
-      if (!mounted) return;
-
-      switch (result) {
-        case _DeliveryCodeValidation.success:
-          Navigator.of(context).pop(true);
-          break;
-        case _DeliveryCodeValidation.missing:
-          setState(() {
-            _submitting = false;
-            _error = 'Aucun code enregistré pour cette commande.';
-          });
-          break;
-        case _DeliveryCodeValidation.mismatch:
-          setState(() {
-            _submitting = false;
-            _error = 'Le code ne correspond pas. Réessayez.';
-          });
-          break;
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _submitting = false;
-        _error = 'Erreur: $e';
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 16,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 24,
-              offset: const Offset(0, -6),
-            ),
-          ],
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 60,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: AppTheme.textLight.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                height: 140,
-                child: Lottie.asset(
-                  'lib/assets/animations/category_loader.json',
-                  fit: BoxFit.contain,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Valider la livraison',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Entrez le code communiqué par le client pour clôturer cette commande.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _codeController,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                maxLength: 4,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: InputDecoration(
-                  labelText: 'Code à 4 chiffres',
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  counterText: '',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  _error!,
-                  style: TextStyle(
-                    color: AppTheme.errorColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _submitting
-                          ? null
-                          : () => Navigator.of(context).pop(false),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text('Annuler'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _submitting ? null : _handleValidation,
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        backgroundColor: AppTheme.successColor,
-                      ),
-                      icon: _submitting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                valueColor: AlwaysStoppedAnimation(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                          : const Icon(Icons.verified_user_rounded),
-                      label: Text(
-                        _submitting ? 'Validation...' : 'Valider',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _StatusVisuals {
   final Color color;
   final String label;
@@ -265,6 +60,11 @@ class _OrdersTabState extends State<OrdersTab>
   final Map<String, _ClientProfile> _clientProfiles = {};
   final Set<String> _pdfInProgress = <String>{};
   bool _bulkExporting = false;
+
+  // Selection mode state
+  bool _isSelectionMode = false;
+  final Set<String> _selectedOrderIds = {};
+  bool _deleting = false;
   static const List<String> _tabStatusKeys = [
     'pending',
     'processing',
@@ -380,6 +180,10 @@ class _OrdersTabState extends State<OrdersTab>
         (order['deliveryAddress'] ?? 'Adresse non spécifiée').toString();
     final phone = (order['phone'] ?? order['phoneNumber'] ?? 'Non fourni')
         .toString();
+    final receiverName = (order['receiverName'] ?? '').toString();
+    final receiverPhone = (order['receiverPhone'] ?? '').toString();
+    final hasReceiver =
+        receiverName.trim().isNotEmpty || receiverPhone.trim().isNotEmpty;
     final createdAt = _parseOrderDate(order['createdAt']);
     final formattedDate = _formatOrderDate(createdAt);
 
@@ -390,7 +194,7 @@ class _OrdersTabState extends State<OrdersTab>
     final tip = _safeToDouble(order['tip']);
     final total = _safeToDouble(order['total']);
 
-    String formatCurrency(double value) => '${value.toStringAsFixed(2)} €';
+    String formatCurrency(double value) => '${value.toString()} €';
 
     final itemRows = items.map((item) {
       final name = (item['productName'] ?? 'Produit').toString();
@@ -463,6 +267,14 @@ class _OrdersTabState extends State<OrdersTab>
                 pw.Text('Client: $customerName'),
                 pw.Text('Téléphone: $phone'),
                 pw.Text('Adresse: $deliveryAddress'),
+                if (hasReceiver) ...[
+                  pw.Text(
+                    'Destinataire: '
+                    '${receiverName.trim().isEmpty ? '—' : receiverName.trim()}',
+                  ),
+                  if (receiverPhone.trim().isNotEmpty)
+                    pw.Text('Téléphone destinataire: ${receiverPhone.trim()}'),
+                ],
                 pw.Text('Date: $formattedDate'),
                 pw.SizedBox(height: 12),
                 pw.Container(
@@ -854,6 +666,15 @@ class _OrdersTabState extends State<OrdersTab>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {
+          // Exit selection mode when changing tabs
+          _isSelectionMode = false;
+          _selectedOrderIds.clear();
+        });
+      }
+    });
     _setupRealtimeListener();
     _setupClientProfilesListener();
   }
@@ -1363,10 +1184,14 @@ class _OrdersTabState extends State<OrdersTab>
             (order['deliveryAddress'] ?? 'Adresse non spécifiée').toString();
         final phone = (order['phone'] ?? order['phoneNumber'] ?? 'Non fourni')
             .toString();
+        final receiverName = (order['receiverName'] ?? '').toString();
+        final receiverPhone = (order['receiverPhone'] ?? '').toString();
+        final hasReceiver =
+            receiverName.trim().isNotEmpty || receiverPhone.trim().isNotEmpty;
         final status = (order['status'] ?? '').toString();
         final visuals = _resolveStatusVisuals(status);
 
-        String formatCurrency(double value) => '${value.toStringAsFixed(2)} €';
+        String formatCurrency(double value) => '${value.toString()} €';
 
         final itemRows = items.map((item) {
           final name = (item['productName'] ?? 'Produit').toString();
@@ -1441,6 +1266,16 @@ class _OrdersTabState extends State<OrdersTab>
                     pw.Text('Client: $customerName'),
                     pw.Text('Téléphone: $phone'),
                     pw.Text('Adresse: $deliveryAddress'),
+                    if (hasReceiver) ...[
+                      pw.Text(
+                        'Destinataire: '
+                        '${receiverName.trim().isEmpty ? '—' : receiverName.trim()}',
+                      ),
+                      if (receiverPhone.trim().isNotEmpty)
+                        pw.Text(
+                          'Téléphone destinataire: ${receiverPhone.trim()}',
+                        ),
+                    ],
                     pw.Text('Date: $formattedDate'),
                     pw.SizedBox(height: 12),
                     pw.Container(
@@ -1606,12 +1441,53 @@ class _OrdersTabState extends State<OrdersTab>
   }
 
   Future<void> _acceptOrder(Map<String, dynamic> order) async {
+    final orderId = order['orderId'] ?? order['id'];
+    if (orderId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Commande introuvable'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text('Accepter la commande'),
+          content: Text(
+            'Voulez-vous vraiment accepter la commande #$orderId et la passer en livraison ?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Confirmer'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) {
+      return;
+    }
+
     try {
       final db = FirebaseDatabase.instanceFor(
         app: Firebase.app(),
         databaseURL: DefaultFirebaseOptions.currentPlatform.databaseURL,
       );
-      final orderId = order['orderId'] ?? order['id'];
       await db.ref('orders').child(orderId.toString()).update({
         'status': 'livraison',
         'acceptedAt': ServerValue.timestamp,
@@ -1642,26 +1518,6 @@ class _OrdersTabState extends State<OrdersTab>
     final dynamic raw = order['orderId'] ?? order['id'];
     if (raw == null) return '';
     return raw.toString();
-  }
-
-  Future<_DeliveryCodeValidation> _validateDeliveryCode(
-    String orderId,
-    String code,
-  ) async {
-    final db = FirebaseDatabase.instanceFor(
-      app: Firebase.app(),
-      databaseURL: DefaultFirebaseOptions.currentPlatform.databaseURL,
-    );
-
-    final snapshot = await db.ref('orders/$orderId/deliveryCode').get();
-    if (!snapshot.exists || snapshot.value == null) {
-      return _DeliveryCodeValidation.missing;
-    }
-
-    final storedCode = snapshot.value.toString().trim();
-    return storedCode == code.trim()
-        ? _DeliveryCodeValidation.success
-        : _DeliveryCodeValidation.mismatch;
   }
 
   Future<void> _completeDelivery(String orderId) async {
@@ -1699,7 +1555,7 @@ class _OrdersTabState extends State<OrdersTab>
     }
   }
 
-  Future<void> _showDeliveryValidationSheet(Map<String, dynamic> order) async {
+  Future<void> _showDeliveryConfirmation(Map<String, dynamic> order) async {
     final orderId = _resolveOrderId(order);
     if (orderId.isEmpty) {
       if (!mounted) return;
@@ -1712,16 +1568,32 @@ class _OrdersTabState extends State<OrdersTab>
       return;
     }
 
-    final validated = await showModalBottomSheet<bool>(
+    final confirm = await showDialog<bool>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (modalContext) => _AdminDeliveryValidationSheet(
-        onConfirm: (code) => _validateDeliveryCode(orderId, code),
-      ),
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text('Confirmer la livraison'),
+          content: Text(
+            'Voulez-vous vraiment marquer la commande #$orderId comme livrée ?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Confirmer'),
+            ),
+          ],
+        );
+      },
     );
 
-    if (validated == true) {
+    if (confirm == true) {
       await _completeDelivery(orderId);
     }
   }
@@ -1758,6 +1630,13 @@ class _OrdersTabState extends State<OrdersTab>
         ? 'Téléphone non renseigné'
         : normalizedPhone;
     final canCallClient = normalizedPhone.isNotEmpty && normalizedPhone != '—';
+    final receiverName = (order['receiverName'] ?? '').toString();
+    final receiverPhone = (order['receiverPhone'] ?? '').toString();
+    final hasReceiver =
+        receiverName.trim().isNotEmpty || receiverPhone.trim().isNotEmpty;
+    final receiverLabel = hasReceiver
+        ? '${receiverName.trim().isNotEmpty ? receiverName.trim() : 'Destinataire'}${receiverPhone.trim().isNotEmpty ? ' • ${receiverPhone.trim()}' : ''}'
+        : '';
 
     await showDialog(
       context: context,
@@ -1914,6 +1793,15 @@ class _OrdersTabState extends State<OrdersTab>
                                 alpha: 0.85,
                               ),
                             ),
+                            if (hasReceiver)
+                              _buildInfoChip(
+                                Icons.person_outline_rounded,
+                                receiverLabel,
+                                textColor: AppTheme.textPrimary,
+                                backgroundColor: Colors.white.withValues(
+                                  alpha: 0.85,
+                                ),
+                              ),
                             _buildInfoChip(
                               Icons.mail_outline_rounded,
                               displayEmail,
@@ -1979,7 +1867,7 @@ class _OrdersTabState extends State<OrdersTab>
                             ),
                           ),
                           Text(
-                            '${totalItem.toStringAsFixed(2)} €',
+                            '${totalItem.toString()} €',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                               color: AppTheme.textPrimary,
@@ -1990,26 +1878,23 @@ class _OrdersTabState extends State<OrdersTab>
                     );
                   }),
                   const Divider(),
-                  _buildDetailRow(
-                    'Sous-total',
-                    '${cartTotal.toStringAsFixed(2)} €',
-                  ),
+                  _buildDetailRow('Sous-total', '${cartTotal.toString()} €'),
                   if (deliveryFee > 0)
                     _buildDetailRow(
                       'Frais de livraison',
-                      '${deliveryFee.toStringAsFixed(2)} €',
+                      '${deliveryFee.toString()} €',
                     ),
                   if (expressFee > 0)
                     _buildDetailRow(
                       'Livraison express',
-                      '${expressFee.toStringAsFixed(2)} €',
+                      '${expressFee.toString()} €',
                     ),
                   if (tip > 0)
-                    _buildDetailRow('Pourboire', '${tip.toStringAsFixed(2)} €'),
+                    _buildDetailRow('Pourboire', '${tip.toString()} €'),
                   const Divider(),
                   _buildDetailRow(
                     'Total encaissé',
-                    '${total.toStringAsFixed(2)} €',
+                    '${total.toString()} €',
                     isTotal: true,
                   ),
                   if (order['notes'] != null &&
@@ -2158,7 +2043,109 @@ class _OrdersTabState extends State<OrdersTab>
     );
   }
 
-  Widget _buildOrdersList(List<Map<String, dynamic>> orders) {
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      _selectedOrderIds.clear();
+    });
+  }
+
+  void _toggleOrderSelection(String orderId) {
+    setState(() {
+      if (_selectedOrderIds.contains(orderId)) {
+        _selectedOrderIds.remove(orderId);
+      } else {
+        _selectedOrderIds.add(orderId);
+      }
+    });
+  }
+
+  void _selectAllOrders(List<Map<String, dynamic>> orders) {
+    setState(() {
+      if (_selectedOrderIds.length == orders.length) {
+        _selectedOrderIds.clear();
+      } else {
+        _selectedOrderIds.clear();
+        for (final order in orders) {
+          final orderId = _resolveOrderId(order);
+          if (orderId.isNotEmpty) {
+            _selectedOrderIds.add(orderId);
+          }
+        }
+      }
+    });
+  }
+
+  Future<void> _deleteSelectedOrders() async {
+    if (_selectedOrderIds.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmer la suppression'),
+        content: Text(
+          'Voulez-vous vraiment supprimer ${_selectedOrderIds.length} commande(s) ? Cette action est irréversible.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.errorColor),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _deleting = true);
+
+    try {
+      final db = FirebaseDatabase.instanceFor(
+        app: Firebase.app(),
+        databaseURL: DefaultFirebaseOptions.currentPlatform.databaseURL,
+      );
+
+      for (final orderId in _selectedOrderIds) {
+        await db.ref('orders').child(orderId).remove();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Commandes supprimées avec succès'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+        setState(() {
+          _isSelectionMode = false;
+          _selectedOrderIds.clear();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la suppression: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _deleting = false);
+      }
+    }
+  }
+
+  Widget _buildOrdersList(
+    List<Map<String, dynamic>> orders, {
+    bool allowSelection = false,
+  }) {
     if (orders.isEmpty) {
       return Center(
         child: Padding(
@@ -2185,503 +2172,504 @@ class _OrdersTabState extends State<OrdersTab>
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 16),
-      itemCount: orders.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final order = orders[index];
-        final total = (order['total'] ?? 0).toDouble();
-        final status = (order['status'] ?? 'pending').toString();
-        final visuals = _resolveStatusVisuals(status);
-        final date = _parseOrderDate(order['createdAt']);
-        final formattedDate = _formatOrderDate(date);
-        final items = _extractOrderItems(order);
-        final previewItems = items.take(3).toList();
-        final remainingItems = items.length - previewItems.length;
-        final customerName = _resolveCustomerName(order);
-        final deliveryLabel = _resolveDeliveryLabel(order);
-        final customerPhoto = _resolveCustomerPhoto(order);
-        final orderCode = order['orderId'] != null
-            ? 'Commande ${order['orderId']}'
-            : 'Commande #${order['id'].toString().substring(0, 6).toUpperCase()}';
-        final normalizedStatus = status.toLowerCase();
-        final isPending =
-            normalizedStatus == 'pending' || normalizedStatus == 'en attente';
-        final awaitingValidation = normalizedStatus == 'awaiting_confirmation';
-
-        return GestureDetector(
-          onTap: () => _showOrderDetails(order),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOut,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [visuals.color.withValues(alpha: 0.14), Colors.white],
-              ),
-              border: Border.all(
-                color: visuals.color.withValues(alpha: 0.2),
-                width: 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: visuals.color.withValues(alpha: 0.18),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
-                ),
+    return Column(
+      children: [
+        if (allowSelection)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (_isSelectionMode) ...[
+                  TextButton.icon(
+                    onPressed: () => _selectAllOrders(orders),
+                    icon: const Icon(Icons.select_all),
+                    label: Text(
+                      _selectedOrderIds.length == orders.length
+                          ? 'Tout désélectionner'
+                          : 'Tout sélectionner',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _selectedOrderIds.isEmpty || _deleting
+                        ? null
+                        : _deleteSelectedOrders,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.errorColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: _deleting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Supprimer'),
+                  ),
+                ] else if (orders.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: _toggleSelectionMode,
+                    icon: const Icon(Icons.checklist),
+                    label: const Text('Sélectionner'),
+                  ),
               ],
             ),
-            child: Stack(
-              children: [
-                Positioned(
-                  top: -28,
-                  right: -20,
-                  child: Container(
-                    width: 108,
-                    height: 108,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          visuals.color.withValues(alpha: 0.22),
-                          Colors.transparent,
-                        ],
-                      ),
+          ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 16),
+            itemCount: orders.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) =>
+                _buildOrderCard(orders[index], allowSelection: allowSelection),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrderCard(
+    Map<String, dynamic> order, {
+    bool allowSelection = false,
+  }) {
+    final total = (order['total'] ?? 0).toDouble();
+    final status = (order['status'] ?? 'pending').toString();
+    final visuals = _resolveStatusVisuals(status);
+    final items = _extractOrderItems(order);
+    final previewItems = items.take(3).toList();
+    final remainingItems = items.length - previewItems.length;
+    final customerName = _resolveCustomerName(order);
+    final deliveryLabel = _resolveDeliveryLabel(order);
+    final customerPhoto = _resolveCustomerPhoto(order);
+    final orderCode = order['orderId'] != null
+        ? 'Commande ${order['orderId']}'
+        : 'Commande #${order['id'].toString().substring(0, 6).toUpperCase()}';
+    final normalizedStatus = status.toLowerCase();
+    final isPending =
+        normalizedStatus == 'pending' || normalizedStatus == 'en attente';
+    final isProcessing =
+        normalizedStatus == 'processing' ||
+        normalizedStatus == 'en cours' ||
+        normalizedStatus == 'en cours de livraison' ||
+        normalizedStatus == 'livraison';
+    final awaitingValidation = normalizedStatus == 'awaiting_confirmation';
+    final canMarkDelivered = isProcessing || awaitingValidation;
+    final receiverName = (order['receiverName'] ?? '').toString();
+    final receiverPhone = (order['receiverPhone'] ?? '').toString();
+    final hasReceiver =
+        receiverName.trim().isNotEmpty || receiverPhone.trim().isNotEmpty;
+    final receiverLabel = hasReceiver
+        ? '${receiverName.trim().isNotEmpty ? receiverName.trim() : 'Destinataire'}${receiverPhone.trim().isNotEmpty ? ' • ${receiverPhone.trim()}' : ''}'
+        : '';
+
+    final orderId = _resolveOrderId(order);
+    final isSelected = _selectedOrderIds.contains(orderId);
+
+    return GestureDetector(
+      onTap: () {
+        if (_isSelectionMode && allowSelection) {
+          _toggleOrderSelection(orderId);
+        } else {
+          _showOrderDetails(order);
+        }
+      },
+      onLongPress: () {
+        if (allowSelection && !_isSelectionMode) {
+          _toggleSelectionMode();
+          _toggleOrderSelection(orderId);
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [visuals.color.withValues(alpha: 0.14), Colors.white],
+          ),
+          border: Border.all(
+            color: isSelected
+                ? AppTheme.primaryColor
+                : visuals.color.withValues(alpha: 0.2),
+            width: isSelected ? 2.5 : 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: visuals.color.withValues(alpha: 0.18),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -28,
+              right: -20,
+              child: Container(
+                width: 108,
+                height: 108,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      visuals.color.withValues(alpha: 0.22),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (_isSelectionMode && allowSelection)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppTheme.primaryColor : Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected
+                          ? AppTheme.primaryColor
+                          : Colors.grey.shade400,
+                      width: 2,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.check,
+                      size: 16,
+                      color: isSelected ? Colors.white : Colors.transparent,
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-                  child: Column(
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [
-                                  visuals.color.withAlpha(36),
-                                  visuals.color.withAlpha(12),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
-                            child: Icon(
-                              visuals.icon,
-                              size: 24,
-                              color: visuals.color,
-                            ),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              visuals.color.withAlpha(36),
+                              visuals.color.withAlpha(12),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        ),
+                        child: Icon(
+                          visuals.icon,
+                          size: 24,
+                          color: visuals.color,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              orderCode,
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                            ),
+                            const SizedBox(height: 3),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
                               children: [
-                                Text(
-                                  orderCode,
-                                  style: Theme.of(context).textTheme.titleLarge
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w800,
-                                        color: AppTheme.textPrimary,
-                                      ),
+                                _buildClientChip(
+                                  customerName,
+                                  photoUrl: customerPhoto,
                                 ),
-                                const SizedBox(height: 3),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    _buildClientChip(
-                                      customerName,
-                                      photoUrl: customerPhoto,
-                                    ),
-                                    _buildInfoChip(
-                                      Icons.location_on_outlined,
-                                      deliveryLabel,
-                                    ),
-                                  ],
+                                _buildInfoChip(
+                                  Icons.location_on_outlined,
+                                  deliveryLabel,
                                 ),
+                                if (hasReceiver)
+                                  _buildInfoChip(
+                                    Icons.person_outline_rounded,
+                                    receiverLabel,
+                                  ),
                               ],
                             ),
-                          ),
-                          Align(
-                            alignment: Alignment.topRight,
-                            child: _buildInfoChip(
-                              visuals.icon,
-                              visuals.label,
-                              textColor: Colors.white,
-                              backgroundColor: visuals.color,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      _buildStatusTimeline(visuals.stageIndex, visuals.color),
-                      const SizedBox(height: 6),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(14),
+                          ],
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      ),
+                      if (!_isSelectionMode)
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: _buildInfoChip(
+                            visuals.icon,
+                            visuals.label,
+                            textColor: Colors.white,
+                            backgroundColor: visuals.color,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  _buildStatusTimeline(visuals.stageIndex, visuals.color),
+                  const SizedBox(height: 6),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                              Text(
+                                'Résumé',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                              ),
+                              Text(
+                                '${total.toString()} €',
+                                style: Theme.of(context).textTheme.headlineSmall
+                                    ?.copyWith(
+                                      color: AppTheme.primaryColor,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          ...previewItems.map((item) {
+                            final itemMap = Map<String, dynamic>.from(item);
+                            final productName =
+                                (itemMap['productName'] ?? 'Produit')
+                                    .toString();
+                            final quantity = _formatQuantity(
+                              itemMap['quantity'],
+                            );
+                            final unit = (itemMap['unit'] ?? '').toString();
+                            final itemTotal = (itemMap['totalPrice'] ?? 0)
+                                .toDouble();
+                            final quantityLabel = unit.isEmpty
+                                ? quantity
+                                : '$quantity $unit';
+                            final initial = productName.isNotEmpty
+                                ? productName[0].toUpperCase()
+                                : '?';
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  Container(
+                                    width: 34,
+                                    height: 34,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      color: visuals.color.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      initial,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: visuals.color,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          productName,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w700,
+                                                color: AppTheme.textPrimary,
+                                              ),
+                                        ),
+                                        Text(
+                                          quantityLabel,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: AppTheme.textSecondary,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                   Text(
-                                    'Résumé',
+                                    '${itemTotal.toString()} €',
                                     style: Theme.of(context)
                                         .textTheme
-                                        .titleMedium
+                                        .bodyMedium
                                         ?.copyWith(
                                           fontWeight: FontWeight.bold,
                                           color: AppTheme.textPrimary,
                                         ),
                                   ),
-                                  Text(
-                                    '${total.toStringAsFixed(0)} €',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineSmall
-                                        ?.copyWith(
-                                          color: AppTheme.primaryColor,
-                                          fontWeight: FontWeight.w800,
-                                        ),
+                                ],
+                              ),
+                            );
+                          }),
+                          if (remainingItems > 0)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                '+ $remainingItems autres articles',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                      color: AppTheme.textSecondary,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                              ),
+                            ),
+                          const SizedBox(height: 8),
+                          if (isPending) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppTheme.successColor,
+                                    AppTheme.successColor.withValues(
+                                      alpha: 0.8,
+                                    ),
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.successColor.withValues(
+                                      alpha: 0.32,
+                                    ),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 8),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
-                              ...previewItems.map((item) {
-                                final itemMap = Map<String, dynamic>.from(item);
-                                final productName =
-                                    (itemMap['productName'] ?? 'Produit')
-                                        .toString();
-                                final quantity = _formatQuantity(
-                                  itemMap['quantity'],
-                                );
-                                final unit = (itemMap['unit'] ?? '').toString();
-                                final itemTotal = (itemMap['totalPrice'] ?? 0)
-                                    .toDouble();
-                                final quantityLabel = unit.isEmpty
-                                    ? quantity
-                                    : '$quantity $unit';
-                                final initial = productName.isNotEmpty
-                                    ? productName[0].toUpperCase()
-                                    : '?';
-
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        width: 34,
-                                        height: 34,
-                                        alignment: Alignment.center,
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          color: visuals.color.withValues(
-                                            alpha: 0.12,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          initial,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18,
-                                            color: visuals.color,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              productName,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyLarge
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.w700,
-                                                    color: AppTheme.textPrimary,
-                                                  ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              quantityLabel,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall
-                                                  ?.copyWith(
-                                                    color:
-                                                        AppTheme.textSecondary,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Text(
-                                        '${itemTotal.toStringAsFixed(0)} €',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                              color: AppTheme.textPrimary,
-                                            ),
-                                      ),
-                                    ],
+                              child: ElevatedButton.icon(
+                                onPressed: () => _acceptOrder(order),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
                                   ),
-                                );
-                              }),
-                              if (remainingItems > 0)
-                                Text(
-                                  '+ $remainingItems article(s) supplémentaires',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        color: AppTheme.textSecondary,
-                                        fontStyle: FontStyle.italic,
-                                      ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
                                 ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          _buildInfoChip(
-                            Icons.calendar_today_outlined,
-                            formattedDate,
-                          ),
-                          _buildInfoChip(
-                            Icons.location_on_outlined,
-                            deliveryLabel,
-                          ),
-                          _buildInfoChip(
-                            Icons.shopping_bag_outlined,
-                            '${items.length} article(s)',
-                          ),
-                          _buildInfoChip(
-                            Icons.attach_money,
-                            '${total.toStringAsFixed(0)} €',
-                            textColor: Colors.white,
-                            backgroundColor: AppTheme.primaryColor,
-                          ),
+                                icon: const Icon(
+                                  Icons.check_circle_outline,
+                                  size: 20,
+                                ),
+                                label: const Text(
+                                  'Accepter la commande',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (canMarkDelivered) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    AppTheme.successColor,
+                                    AppTheme.successColor.withValues(
+                                      alpha: 0.8,
+                                    ),
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.successColor.withValues(
+                                      alpha: 0.32,
+                                    ),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: ElevatedButton.icon(
+                                onPressed: () =>
+                                    _showDeliveryConfirmation(order),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                ),
+                                icon: const Icon(
+                                  Icons.check_circle_outline,
+                                  size: 20,
+                                ),
+                                label: const Text(
+                                  'Marquer comme livrée',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
-                      if (isPending) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
-                            gradient: LinearGradient(
-                              colors: [
-                                AppTheme.successColor,
-                                AppTheme.successColor.withValues(alpha: 0.8),
-                              ],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.successColor.withValues(
-                                  alpha: 0.32,
-                                ),
-                                blurRadius: 18,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: ElevatedButton.icon(
-                            onPressed: () => _acceptOrder(order),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                            ),
-                            icon: const Icon(
-                              Icons.check_circle_outline,
-                              size: 20,
-                            ),
-                            label: const Text(
-                              'Accepter la commande',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (awaitingValidation) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
-                            gradient: LinearGradient(
-                              colors: [
-                                AppTheme.warningColor.withValues(alpha: 0.9),
-                                AppTheme.warningColor.withValues(alpha: 0.6),
-                              ],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.warningColor.withValues(
-                                  alpha: 0.25,
-                                ),
-                                blurRadius: 18,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(18),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Validation requise',
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Demandez au client le code secret avant de finaliser la commande.',
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.9,
-                                        ),
-                                      ),
-                                ),
-                                const SizedBox(height: 14),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(18),
-                                    color: Colors.white.withValues(alpha: 0.12),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: Colors.white.withValues(
-                                            alpha: 0.2,
-                                          ),
-                                        ),
-                                        child: const Icon(
-                                          Icons.lock_outline_rounded,
-                                          color: Colors.white,
-                                          size: 22,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          'Le code à 4 chiffres est visible uniquement par le client.',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(18),
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        AppTheme.successColor,
-                                        AppTheme.successColor.withValues(
-                                          alpha: 0.85,
-                                        ),
-                                      ],
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppTheme.successColor.withValues(
-                                          alpha: 0.3,
-                                        ),
-                                        blurRadius: 18,
-                                        offset: const Offset(0, 10),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ElevatedButton.icon(
-                                    onPressed: () =>
-                                        _showDeliveryValidationSheet(order),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      foregroundColor: Colors.white,
-                                      shadowColor: Colors.transparent,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(18),
-                                      ),
-                                    ),
-                                    icon: const Icon(
-                                      Icons.verified_rounded,
-                                      size: 20,
-                                    ),
-                                    label: const Text(
-                                      'Valider le code de livraison',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
@@ -2818,10 +2806,18 @@ class _OrdersTabState extends State<OrdersTab>
                         Expanded(
                           child: TabBarView(
                             controller: _tabController,
-                            children: _tabStatusKeys
-                                .map(_getOrdersByStatus)
-                                .map(_buildOrdersList)
-                                .toList(),
+                            children: [
+                              _buildOrdersList(
+                                _getOrdersByStatus(_tabStatusKeys[0]),
+                              ),
+                              _buildOrdersList(
+                                _getOrdersByStatus(_tabStatusKeys[1]),
+                              ),
+                              _buildOrdersList(
+                                _getOrdersByStatus(_tabStatusKeys[2]),
+                                allowSelection: true,
+                              ),
+                            ],
                           ),
                         ),
                       ],

@@ -4,13 +4,18 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/pill_page_header.dart';
 import '../../services/realtime_database_service.dart';
 import '../../models/product_models.dart';
-import '../category_products_screen.dart';
+
 import '../../widgets/category_icon_view.dart';
 
+import '../sub_categories_screen.dart';
+
 class CategoriesTab extends StatefulWidget {
-  const CategoriesTab({super.key});
+  final VoidCallback? onBackToHome;
+
+  const CategoriesTab({super.key, this.onBackToHome});
   @override
   State<CategoriesTab> createState() => _CategoriesTabState();
 }
@@ -77,18 +82,16 @@ class _CategoriesTabState extends State<CategoriesTab> {
       decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Catégories',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.bold,
-                ),
+              PillPageHeader(
+                title: 'Catégories',
+                subtitle: 'Explorez toutes nos sélections',
+                onBack: widget.onBackToHome,
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               Expanded(
                 child: _loading
                     ? Center(
@@ -149,181 +152,91 @@ class _CategoriesTabState extends State<CategoriesTab> {
                     : RefreshIndicator(
                         onRefresh: _fetchCategories,
                         child: GridView.builder(
-                          padding: const EdgeInsets.only(bottom: 24),
+                          padding: const EdgeInsets.only(bottom: 18),
                           itemCount: _categories.length,
                           gridDelegate:
                               const SliverGridDelegateWithMaxCrossAxisExtent(
-                                maxCrossAxisExtent: 180,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 18,
+                                maxCrossAxisExtent: 150,
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 16,
                                 childAspectRatio: 1,
                               ),
                           itemBuilder: (context, i) {
                             final c = _categories[i];
                             final color = _parseColor(c.color);
                             final icon = _iconForName(c.iconName);
-                            return GestureDetector(
+
+                            final card = GestureDetector(
                               onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
-                                        CategoryProductsScreen(category: c),
+                                        SubCategoriesScreen(category: c),
                                   ),
                                 );
                               },
-                              child:
-                                  Container(
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            22,
-                                          ),
-                                          border: Border.all(
-                                            color: color.withOpacity(0.32),
-                                            width: 1.2,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: color.withOpacity(0.16),
-                                              blurRadius: 18,
-                                              offset: const Offset(0, 10),
-                                            ),
-                                          ],
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.04),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    // Icon centered in the card
+                                    Expanded(
+                                      child: Center(
+                                        child: CategoryIconView(
+                                          iconUrl: c.iconUrl,
+                                          fallbackIcon: icon,
+                                          size: 56,
+                                          fallbackColor: color,
+                                          borderRadius: 12,
+                                          showLoader: false,
+                                          overlayColor: Colors.transparent,
+                                          expandToFill: false,
                                         ),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            22,
-                                          ),
-                                          child: Stack(
-                                            children: [
-                                              CategoryIconView(
-                                                iconUrl: c.iconUrl,
-                                                fallbackIcon: icon,
-                                                size: 120,
-                                                fallbackColor: color,
-                                                borderRadius: 0,
-                                                showLoader: false,
-                                                overlayColor: Colors.white
-                                                    .withOpacity(0.04),
-                                                expandToFill: true,
-                                              ),
-                                              Positioned.fill(
-                                                child: DecoratedBox(
-                                                  decoration: BoxDecoration(
-                                                    gradient: LinearGradient(
-                                                      begin:
-                                                          Alignment.topCenter,
-                                                      end: Alignment
-                                                          .bottomCenter,
-                                                      colors: [
-                                                        Colors.black
-                                                            .withOpacity(0.05),
-                                                        Colors.black
-                                                            .withOpacity(0.45),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              Positioned(
-                                                top: 16,
-                                                right: 16,
-                                                child: Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 6,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.white
-                                                        .withOpacity(0.18),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          999,
-                                                        ),
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        Icons.blur_on_rounded,
-                                                        size: 16,
-                                                        color: Colors.white
-                                                            .withOpacity(0.9),
-                                                      ),
-                                                      const SizedBox(width: 6),
-                                                      Text(
-                                                        '#${(i + 1).toString().padLeft(2, '0')}',
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                              Positioned(
-                                                left: 16,
-                                                right: 16,
-                                                bottom: 16,
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Text(
-                                                      c.name,
-                                                      style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                        fontSize: 16,
-                                                        letterSpacing: 0.3,
-                                                        shadows: [
-                                                          Shadow(
-                                                            color:
-                                                                Colors.black45,
-                                                            blurRadius: 12,
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                    const SizedBox(height: 6),
-                                                    Text(
-                                                      c.description.isNotEmpty
-                                                          ? c.description
-                                                          : 'Découvrir les produits',
-                                                      style: const TextStyle(
-                                                        color: Colors.white70,
-                                                        fontSize: 12,
-                                                        height: 1.3,
-                                                      ),
-                                                      maxLines: 2,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                      ),
+                                    ),
+                                    // Title at the bottom
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 8,
+                                      ),
+                                      child: Text(
+                                        c.name,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: AppTheme.textPrimary,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
                                         ),
-                                      )
-                                      .animate()
-                                      .fade(
-                                        duration: 300.ms,
-                                        delay: (i * 70).ms,
-                                      )
-                                      .slideY(begin: 0.12),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             );
+
+                            return card
+                                .animate()
+                                .fade(duration: 260.ms, delay: (i * 50).ms)
+                                .scale(
+                                  begin: const Offset(0.9, 0.9),
+                                  end: const Offset(1, 1),
+                                );
                           },
                         ),
                       ),

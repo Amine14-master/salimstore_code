@@ -34,6 +34,16 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
+
+# Fix for Firebase Windows linking issues - add required C++ runtime libraries
+# Use static runtime linking to resolve missing symbols
+target_compile_options(${BINARY_NAME} PRIVATE /MT)
+target_link_libraries(${BINARY_NAME} PRIVATE 
+    "legacy_stdio_definitions.lib"
+    "vcruntime.lib"
+    "msvcrt.lib"
+)
+
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import '../models/product_models.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatting.dart';
@@ -26,7 +27,7 @@ class ProductCard extends StatelessWidget {
           children: [
             // Product Image
             Container(
-              height: 120,
+              height: 150,
               width: double.infinity,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
@@ -34,27 +35,65 @@ class ProductCard extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: product.imageUrl.isNotEmpty
-                    ? Image.network(
-                        product.imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Center(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    product.imageUrl.isNotEmpty
+                        ? Image.network(
+                            product.imageUrl,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Shimmer.fromColors(
+                                baseColor: Colors.white.withOpacity(0.4),
+                                highlightColor: Colors.white.withOpacity(0.8),
+                                child: Container(color: Colors.white),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Center(
+                                child: Icon(
+                                  Icons.image_not_supported,
+                                  size: 48,
+                                  color: AppTheme.textLight,
+                                ),
+                              );
+                            },
+                          )
+                        : const Center(
                             child: Icon(
-                              Icons.image_not_supported,
-                              size: 40,
+                              Icons.image,
+                              size: 48,
                               color: AppTheme.textLight,
                             ),
-                          );
-                        },
-                      )
-                    : const Center(
-                        child: Icon(
-                          Icons.image,
-                          size: 40,
-                          color: AppTheme.textLight,
+                          ),
+                    if (product.originalPrice != null ||
+                        (product.discountPercentage != null &&
+                            product.discountPercentage! > 0))
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.successColor,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text(
+                            'Promotion',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -68,12 +107,22 @@ class ProductCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+            const SizedBox(height: 2),
+            Text(
+              product.isAvailable ? 'Disponible' : 'Indisponible',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: product.isAvailable
+                    ? AppTheme.successColor
+                    : AppTheme.errorColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 4),
 
             // Rating
             Row(
               children: [
-                Icon(Icons.star, size: 16, color: Colors.amber[600]),
+                Icon(Icons.star, size: 18, color: Colors.amber[600]),
                 const SizedBox(width: 4),
                 Text(
                   product.rating.toStringAsFixed(1),
@@ -104,19 +153,26 @@ class ProductCard extends StatelessWidget {
                       locale,
                     );
 
-                    return Text(
-                      priceText,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          priceText,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                      ],
                     );
                   },
                 ),
                 GestureDetector(
                   onTap: onAddToCart,
                   child: Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: AppTheme.primaryColor,
                       borderRadius: BorderRadius.circular(8),
@@ -124,7 +180,7 @@ class ProductCard extends StatelessWidget {
                     child: const Icon(
                       Icons.add_shopping_cart,
                       color: Colors.white,
-                      size: 18,
+                      size: 22,
                     ),
                   ),
                 ),

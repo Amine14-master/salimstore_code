@@ -71,67 +71,76 @@ class CategoryIconView extends StatelessWidget {
   }) {
     final fallback = _buildFallback(width, height);
 
-    if (url == null || url.isEmpty) {
-      return fallback;
-    }
-
-    Widget image = Image.network(
-      url,
-      width: width,
-      height: height,
-      fit: BoxFit.cover,
-      filterQuality: FilterQuality.high,
-      errorBuilder: (_, __, ___) => fallback,
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) {
-          return _wrapWithOverlay(child);
-        }
-        if (!showLoader) {
-          return _wrapWithOverlay(child);
-        }
-        return Shimmer.fromColors(
-          baseColor: AppTheme.primaryColor.withOpacity(0.25),
-          highlightColor: Colors.white,
-          child: Container(
+    // If URL is provided, prioritize it and use contain fit to show full image
+    if (url != null && url.isNotEmpty) {
+      Widget image = Image.network(
+        url,
+        width: width,
+        height: height,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (_, __, ___) {
+          // If URL fails, show empty container instead of fallback icon
+          return Container(
             width: width,
             height: height,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(borderRadius),
+            color: Colors.transparent,
+          );
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) {
+            return _wrapWithOverlay(child);
+          }
+          if (!showLoader) {
+            return _wrapWithOverlay(child);
+          }
+          return Shimmer.fromColors(
+            baseColor: AppTheme.primaryColor.withOpacity(0.25),
+            highlightColor: Colors.white,
+            child: Container(
+              width: width,
+              height: height,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(borderRadius),
+              ),
+            ),
+          );
+        },
+      );
+
+      if (clipOval) {
+        image = ClipOval(child: image);
+      } else if (borderRadius > 0) {
+        image = ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: image,
+        );
+      }
+
+      if (!showLoader) {
+        return _wrapWithOverlay(image);
+      }
+
+      return Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: width,
+            height: height,
+            child: Lottie.asset(
+              'lib/assets/animations/category_loader.json',
+              repeat: true,
+              fit: BoxFit.cover,
             ),
           ),
-        );
-      },
-    );
-
-    if (clipOval) {
-      image = ClipOval(child: image);
-    } else if (borderRadius > 0) {
-      image = ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: image,
+          SizedBox(width: width, height: height, child: image),
+        ],
       );
     }
 
-    if (!showLoader) {
-      return _wrapWithOverlay(image);
-    }
-
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        SizedBox(
-          width: width,
-          height: height,
-          child: Lottie.asset(
-            'lib/assets/animations/category_loader.json',
-            repeat: true,
-            fit: BoxFit.cover,
-          ),
-        ),
-        SizedBox(width: width, height: height, child: image),
-      ],
-    );
+    // No URL, use fallback icon
+    return fallback;
   }
 
   Widget _buildFallback(double width, double height) {

@@ -195,7 +195,7 @@ class _DashboardTabState extends State<DashboardTab> {
                             _buildStatCard(
                               context,
                               'Chiffre d\'Affaires',
-                              '${_stats['totalRevenue'].toStringAsFixed(0)} DA',
+                              '${_stats['totalRevenue'].toString()} DA',
                               Icons.attach_money,
                               AppTheme.errorColor,
                             ),

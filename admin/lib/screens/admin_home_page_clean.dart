@@ -397,7 +397,6 @@ class _QuickActionCarousel extends StatelessWidget {
 
 class _AdminHomePageState extends State<AdminHomePage> {
   int _selectedIndex = 0;
-  bool _showQuickActions = false;
 
   final List<Widget> _pages = [
     const DashboardTab(),
@@ -439,6 +438,7 @@ class _DashboardTabState extends State<DashboardTab> {
     'totalRevenue': 0.0,
   };
   bool _isLoading = true;
+  bool _showQuickActions = false;
 
   @override
   void initState() {
@@ -554,7 +554,7 @@ class _DashboardTabState extends State<DashboardTab> {
                             _buildStatCard(
                               context,
                               'Revenue',
-                              '${_stats['totalRevenue'].toStringAsFixed(0)} €',
+                              '${_stats['totalRevenue'].toString()} €',
                               Icons.attach_money,
                               AppTheme.errorColor,
                             ),

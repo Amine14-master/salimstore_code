@@ -1,11 +1,11 @@
 {
-    "name": "client",
-    "short_name": "client",
+    "name": "Livriyes - Livriyes",
+    "short_name": "Livriyes",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#10B981",
+    "theme_color": "#10B981",
+    "description": "Livriyes - Your trusted online store for quality products",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

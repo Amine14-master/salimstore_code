@@ -3,8 +3,6 @@ import 'dart:typed_data';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_core/firebase_core.dart';
-import '../firebase_options.dart';
 import 'cloudinary_service.dart';
 
 class AuthService {
@@ -15,10 +13,8 @@ class AuthService {
   FirebaseDatabase get _db {
     if (_database == null) {
       try {
-        _database = FirebaseDatabase.instanceFor(
-          app: Firebase.app(),
-          databaseURL: DefaultFirebaseOptions.currentPlatform.databaseURL,
-        );
+        // Use the default instance to avoid multiple initialization
+        _database = FirebaseDatabase.instance;
       } catch (e) {
         print('Error initializing Database: $e');
         // Fallback to default instance
@@ -242,58 +238,190 @@ class AuthService {
     required String phone,
     required String password,
   }) async {
-    try {
-      final credential = await _auth.signInWithEmailAndPassword(
-        email: '$phone@client.salimstore.com',
-        password: password,
-      );
-      final user = credential.user;
-      if (user != null) {
-        try {
-          final clientSnapshot = await _db.ref('clients').child(phone).get();
-          Map<String, dynamic> clientData = {
-            'name': user.displayName ?? 'Client',
-            'phone': phone,
-            'email': user.email ?? '',
-            'role': 'client',
-            if (user.photoURL != null) 'photoUrl': user.photoURL,
-          };
+    // Try original first, then reset variants (up to 10)
+    final emailsToTry = [
+      '$phone@client.salimstore.com',
+      ...List.generate(10, (i) => '${phone}_r${i + 1}@client.salimstore.com'),
+    ];
 
-          if (clientSnapshot.exists) {
-            final data = Map<String, dynamic>.from(clientSnapshot.value as Map);
-            clientData.addAll(data);
-          } else {
-            await _db.ref('clients').child(phone).set({
-              ...clientData,
-              'displayName': clientData['name'],
-              'phoneNumber': clientData['phone'],
-              'createdAt': ServerValue.timestamp,
-              'updatedAt': ServerValue.timestamp,
-            });
+    String? lastError;
+
+    for (final email in emailsToTry) {
+      try {
+        print('Attempting sign in with $email');
+        final credential = await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        final user = credential.user;
+        if (user != null) {
+          print('Sign in successful with $email');
+          // Update client data and profile
+          try {
+            final clientSnapshot = await _db.ref('clients').child(phone).get();
+            Map<String, dynamic> clientData = {
+              'name': user.displayName ?? 'Client',
+              'phone': phone,
+              'email': user.email ?? '',
+              'role': 'client',
+              if (user.photoURL != null) 'photoUrl': user.photoURL,
+            };
+
+            if (clientSnapshot.exists) {
+              final data = Map<String, dynamic>.from(
+                clientSnapshot.value as Map,
+              );
+              clientData.addAll(data);
+            } else {
+              await _db.ref('clients').child(phone).set({
+                ...clientData,
+                'displayName': clientData['name'],
+                'phoneNumber': clientData['phone'],
+                'createdAt': ServerValue.timestamp,
+                'updatedAt': ServerValue.timestamp,
+              });
+            }
+
+            await _saveUserRealtimeProfile(
+              user: user,
+              name: clientData['name']?.toString() ?? 'Client',
+              phone: clientData['phone']?.toString() ?? phone,
+              email: clientData['email']?.toString() ?? user.email,
+              photoUrl: clientData['photoUrl']?.toString(),
+            );
+          } catch (syncError) {
+            print('Error syncing realtime profile on sign-in: $syncError');
           }
-
-          await _saveUserRealtimeProfile(
-            user: user,
-            name: clientData['name']?.toString() ?? 'Client',
-            phone: clientData['phone']?.toString() ?? phone,
-            email: clientData['email']?.toString() ?? user.email,
-            photoUrl: clientData['photoUrl']?.toString(),
-          );
-        } catch (syncError) {
-          print('Error syncing realtime profile on sign-in: $syncError');
+          return null; // Success
         }
+      } on FirebaseAuthException catch (e) {
+        // If user not found, try next variant
+        if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
+          print(
+            'User not found or invalid credential for $email, trying next...',
+          );
+          lastError = _getErrorMessage(e.code);
+          continue;
+        }
+        // If wrong password, try next variant but don't overwrite success
+        if (e.code == 'wrong-password') {
+          print('Wrong password for $email, trying next...');
+          lastError = _getErrorMessage(e.code);
+          continue;
+        }
+        // For other errors (e.g. disabled, too many requests), stop and return error
+        print('Fatal auth error for $email: ${e.code}');
+        return _getErrorMessage(e.code);
+      } catch (e) {
+        print('Unexpected error for $email: $e');
+        lastError = 'An unexpected error occurred';
+        continue;
       }
-      return null; // Success
-    } on FirebaseAuthException catch (e) {
-      return _getErrorMessage(e.code);
-    } catch (e) {
-      return 'An unexpected error occurred';
     }
+
+    print('All sign-in attempts failed. Last error: $lastError');
+    return lastError ?? 'Authentication failed';
   }
 
-  // Sign out
-  Future<void> signOut() async {
-    await _auth.signOut();
+  // Force reset password by creating a new account version
+  // This is a workaround since we can't reset password without old password
+  Future<String?> resetPasswordWithNewAccount({
+    required String phone,
+    required String newPassword,
+  }) async {
+    try {
+      // Try to find an available email slot (up to 10 resets)
+      String? emailToUse;
+      final variants = List.generate(
+        10,
+        (i) => '${phone}_r${i + 1}@client.salimstore.com',
+      );
+
+      for (final email in variants) {
+        try {
+          print('Trying to create reset account with email: $email');
+          // Try to create user with this email
+          final result = await _auth.createUserWithEmailAndPassword(
+            email: email,
+            password: newPassword,
+          );
+
+          if (result.user != null) {
+            emailToUse = email;
+            print('Successfully created reset account with email: $email');
+            break; // Success, stop looking
+          }
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'email-already-in-use') {
+            print('Email $email already exists, trying next variant...');
+            continue; // Try next variant
+          }
+          print('Error creating reset account with $email: ${e.code}');
+          rethrow;
+        }
+      }
+
+      if (emailToUse == null) {
+        return 'Trop de réinitialisations. Veuillez contacter le support.';
+      }
+
+      final user = _auth.currentUser;
+      if (user != null) {
+        print(
+          'Current user after reset account creation: ${user.uid} with email: ${user.email}',
+        );
+
+        // Restore profile data from RTDB if available
+        try {
+          final snapshot = await _db.ref('clients').child(phone).get();
+          if (snapshot.exists) {
+            final data = Map<String, dynamic>.from(snapshot.value as Map);
+            final name = data['name'] ?? 'Client';
+
+            print('Restoring profile data: name=$name, phone=$phone');
+            await user.updateDisplayName(name);
+
+            // Update RTDB to reflect recent activity and track which email is now active
+            await _db.ref('clients').child(phone).update({
+              'updatedAt': ServerValue.timestamp,
+              'passwordResetAt': ServerValue.timestamp,
+              'activeAuthEmail':
+                  user.email, // Track which email is currently active
+              'authEmailVersion': emailToUse.contains('_r')
+                  ? emailToUse.split('_r')[1].split('@')[0]
+                  : 'original',
+            });
+
+            // Link this new user to the profile
+            await _saveUserRealtimeProfile(
+              user: user,
+              name: name,
+              phone: phone,
+              email: data['email'],
+            );
+
+            print('Profile restoration completed successfully');
+          }
+        } catch (e) {
+          print('Error restoring profile during reset: $e');
+        }
+
+        print(
+          'Password reset completed successfully. User can now login with new password.',
+        );
+        return null; // Success
+      }
+
+      return 'Erreur lors de la création du nouveau compte';
+    } on FirebaseAuthException catch (e) {
+      print(
+        'Firebase Auth error during password reset: ${e.code} - ${e.message}',
+      );
+      return _getErrorMessage(e.code);
+    } catch (e) {
+      print('Unexpected error during password reset: $e');
+      return 'Une erreur inattendue est survenue: $e';
+    }
   }
 
   // Update client profile
@@ -462,6 +590,8 @@ class AuthService {
         return 'Too many attempts. Please try again later.';
       case 'operation-not-allowed':
         return 'Signing in with this method is not enabled.';
+      case 'invalid-credential':
+        return 'Invalid phone number or password.';
       default:
         return 'An error occurred. Please try again.';
     }

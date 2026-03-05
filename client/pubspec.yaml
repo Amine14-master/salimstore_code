@@ -1,5 +1,5 @@
 name: client
-description: "A new Flutter project."
+description: "Livriyes - Livraison de produits frais aux wilaya ."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.2
 
 environment:
   sdk: ^3.9.2
@@ -54,6 +54,7 @@ dependencies:
   intl: ^0.20.2
   pdf: ^3.10.6
   printing: ^5.13.3
+  font_awesome_flutter: ^10.7.0
   
   # Location and Maps
   geolocator: ^11.0.0
@@ -68,14 +69,21 @@ dependencies:
   # Phone and URL launcher
   url_launcher: ^6.3.0
   http: ^1.1.0
+  smssak: ^1.0.0
   
   # Image picker for profile photo
   image_picker: ^1.0.7
+  cached_network_image: ^3.3.1
   
   # Firebase Storage for image upload
   firebase_storage: ^12.0.0
   cloudinary_api: ^1.1.1
   cloudinary_url_gen: ^1.8.0
+  cloud_functions: ^5.6.2
+  webview_flutter: ^4.13.0
+  webview_flutter_android: ^4.10.9
+  webview_flutter_web: ^0.2.3+4
+  flutter_native_splash: ^2.4.7
 
 dev_dependencies:
   flutter_test:
@@ -87,6 +95,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -102,6 +112,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - assets/html/
     - lib/data/algeria_cities.json
     - lib/assets/all-wilayas.geojson
     - lib/assets/images/
@@ -133,3 +144,22 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Flutter Launcher Icons configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  windows:
+    generate: true
+  image_path: "lib/assets/images/store_logo.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "lib/assets/images/store_logo.png"
+
+flutter_native_splash:
+  color: "#ffffff"
+  image: lib/assets/images/image.png
+  fullscreen: false
+  android_12:
+    image: lib/assets/images/image.png
+    color: "#ffffff"
+    

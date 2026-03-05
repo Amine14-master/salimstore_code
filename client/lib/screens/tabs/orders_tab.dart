@@ -1,20 +1,19 @@
 import 'dart:async';
-import 'dart:math';
+
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:lottie/lottie.dart';
+
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../theme/app_theme.dart';
-import '../../firebase_options.dart';
+import '../../widgets/pill_page_header.dart';
 
 class _StatusVisuals {
   final Color color;
@@ -30,233 +29,10 @@ class _StatusVisuals {
   });
 }
 
-class _DeliveryConfirmationSheet extends StatefulWidget {
-  const _DeliveryConfirmationSheet({
-    required this.code,
-    required this.onConfirm,
-    required this.onCopy,
-  });
-
-  final String code;
-  final Future<bool> Function() onConfirm;
-  final Future<void> Function() onCopy;
-
-  @override
-  State<_DeliveryConfirmationSheet> createState() =>
-      _DeliveryConfirmationSheetState();
-}
-
-class _DeliveryConfirmationSheetState
-    extends State<_DeliveryConfirmationSheet> {
-  bool _submitting = false;
-  String? _error;
-
-  Future<void> _handleConfirm() async {
-    if (_submitting) return;
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-
-    try {
-      final ok = await widget.onConfirm();
-      if (!mounted) return;
-      if (ok) {
-        Navigator.of(context).pop(true);
-      } else {
-        setState(() {
-          _error = 'Impossible de valider la commande.';
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _submitting = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      color: Colors.transparent,
-      child: SafeArea(
-        top: false,
-        child: Container(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 16,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 28,
-                offset: const Offset(0, -6),
-              ),
-            ],
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: 60,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: AppTheme.textLight.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  height: 140,
-                  child: Lottie.asset(
-                    'lib/assets/animations/category_loader.json',
-                    fit: BoxFit.contain,
-                    repeat: true,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Valider la réception',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Partagez ce code avec l\'administrateur pour finaliser la commande.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Shimmer.fromColors(
-                  baseColor: AppTheme.primaryColor.withOpacity(0.6),
-                  highlightColor: AppTheme.primaryColor.withOpacity(0.2),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 36,
-                      vertical: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      color: AppTheme.primaryColor.withOpacity(0.1),
-                    ),
-                    child: Text(
-                      widget.code,
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 10,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 14,
-                  runSpacing: 10,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: _submitting ? null : widget.onCopy,
-                      icon: const Icon(Icons.copy_rounded),
-                      label: const Text('Copier le code'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _submitting
-                          ? null
-                          : () => Navigator.of(context).pop(false),
-                      icon: const Icon(Icons.close_rounded),
-                      label: const Text('Plus tard'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _submitting ? null : _handleConfirm,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.successColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-                    icon: _submitting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.3,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            ),
-                          )
-                        : const Icon(Icons.verified_rounded),
-                    label: Text(
-                      _submitting ? 'Validation...' : 'Confirmer la livraison',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 14),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.errorColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: AppTheme.errorColor,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _error!,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: AppTheme.errorColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class OrdersTab extends StatefulWidget {
-  const OrdersTab({super.key});
+  final VoidCallback? onBackToHome;
+
+  const OrdersTab({super.key, this.onBackToHome});
 
   @override
   State<OrdersTab> createState() => OrdersTabState();
@@ -268,9 +44,14 @@ class OrdersTabState extends State<OrdersTab>
   List<Map<String, dynamic>> _allOrders = [];
   late TabController _tabController;
   StreamSubscription<DatabaseEvent>? _ordersSubscription;
-  final Map<String, String> _pendingDeliveryCodes = {};
+
   final Set<String> _pdfInProgress = <String>{};
   bool _bulkExporting = false;
+
+  // Selection mode state
+  bool _isSelectionMode = false;
+  final Set<String> _selectedOrderIds = {};
+  bool _deleting = false;
   static const List<String> _tabStatusKeys = [
     'pending',
     'processing',
@@ -303,17 +84,6 @@ class OrdersTabState extends State<OrdersTab>
         label: 'En livraison',
         icon: Icons.route,
         stageIndex: 2,
-      );
-    }
-
-    if (normalized == 'awaiting_confirmation' ||
-        normalized == 'validation' ||
-        normalized == 'client_confirmed') {
-      return const _StatusVisuals(
-        color: AppTheme.warningColor,
-        label: 'Validation requise',
-        icon: Icons.verified_outlined,
-        stageIndex: 3,
       );
     }
 
@@ -390,7 +160,7 @@ class OrdersTabState extends State<OrdersTab>
     final tip = _safeToDouble(order['tip']);
     final total = _safeToDouble(order['total']);
 
-    String formatCurrency(double value) => '${value.toStringAsFixed(2)} €';
+    String formatCurrency(double value) => '${value.toString()} €';
 
     final itemRows = items.map((item) {
       final productName = (item['productName'] ?? 'Produit').toString();
@@ -780,6 +550,11 @@ class OrdersTabState extends State<OrdersTab>
     return '$day/$month/$year · $hour:$minute';
   }
 
+  String _formatCurrency(double value) {
+    if (value % 1 == 0) return '${value.toInt()} €';
+    return '${value.toStringAsFixed(2)} €';
+  }
+
   List<Map<String, dynamic>> _extractOrderItems(Map<String, dynamic> order) {
     final rawItems = order['items'];
     if (rawItems is List) {
@@ -959,6 +734,15 @@ class OrdersTabState extends State<OrdersTab>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {
+          // Exit selection mode when changing tabs
+          _isSelectionMode = false;
+          _selectedOrderIds.clear();
+        });
+      }
+    });
     _setupRealtimeListener();
   }
 
@@ -980,10 +764,7 @@ class OrdersTabState extends State<OrdersTab>
       return;
     }
 
-    final db = FirebaseDatabase.instanceFor(
-      app: Firebase.app(),
-      databaseURL: DefaultFirebaseOptions.currentPlatform.databaseURL,
-    );
+    final db = FirebaseDatabase.instance;
     final ref = db.ref('orders');
 
     _ordersSubscription = ref.onValue.listen(
@@ -1057,10 +838,7 @@ class OrdersTabState extends State<OrdersTab>
       return;
     }
     try {
-      final db = FirebaseDatabase.instanceFor(
-        app: Firebase.app(),
-        databaseURL: DefaultFirebaseOptions.currentPlatform.databaseURL,
-      );
+      final db = FirebaseDatabase.instance;
       final ref = db.ref('orders');
 
       // Fetch all orders and filter client-side (no index needed)
@@ -1174,7 +952,10 @@ class OrdersTabState extends State<OrdersTab>
     return filtered;
   }
 
-  Widget _buildOrdersList(List<Map<String, dynamic>> orders) {
+  Widget _buildOrdersList(
+    List<Map<String, dynamic>> orders, {
+    bool allowSelection = false,
+  }) {
     if (orders.isEmpty) {
       return Center(
         child: Padding(
@@ -1208,12 +989,16 @@ class OrdersTabState extends State<OrdersTab>
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
         itemCount: orders.length,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, index) => _buildOrderCard(orders[index]),
+        itemBuilder: (context, index) =>
+            _buildOrderCard(orders[index], allowSelection: allowSelection),
       ),
     );
   }
 
-  Widget _buildOrderCard(Map<String, dynamic> order) {
+  Widget _buildOrderCard(
+    Map<String, dynamic> order, {
+    bool allowSelection = false,
+  }) {
     final total = (order['total'] ?? 0).toDouble();
     final status = (order['status'] ?? 'pending').toString();
     final visuals = _resolveStatusVisuals(status);
@@ -1236,17 +1021,23 @@ class OrdersTabState extends State<OrdersTab>
     final orderCode = orderIdValue != null && orderIdValue.isNotEmpty
         ? 'Commande $orderIdValue'
         : 'Commande #${shortenedId.toUpperCase()}';
-    final normalizedStatus = status.toLowerCase();
-    final awaitingAdminValidation = normalizedStatus == 'awaiting_confirmation';
-    final canMarkDelivered =
-        (normalizedStatus == 'processing' ||
-            normalizedStatus == 'en cours' ||
-            normalizedStatus == 'en cours de livraison' ||
-            normalizedStatus == 'livraison') &&
-        !awaitingAdminValidation;
+
+    final isSelected = _selectedOrderIds.contains(orderIdValue ?? rawId);
 
     return GestureDetector(
-      onTap: () => _showOrderDetails(order),
+      onTap: () {
+        if (_isSelectionMode && allowSelection) {
+          _toggleOrderSelection(orderIdValue ?? rawId);
+        } else {
+          _showOrderDetails(order);
+        }
+      },
+      onLongPress: () {
+        if (allowSelection && !_isSelectionMode) {
+          _toggleSelectionMode();
+          _toggleOrderSelection(orderIdValue ?? rawId);
+        }
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
@@ -1258,8 +1049,10 @@ class OrdersTabState extends State<OrdersTab>
             colors: [visuals.color.withOpacity(0.12), Colors.white],
           ),
           border: Border.all(
-            color: visuals.color.withOpacity(0.18),
-            width: 1.1,
+            color: isSelected
+                ? AppTheme.primaryColor
+                : visuals.color.withOpacity(0.18),
+            width: isSelected ? 2.0 : 1.1,
           ),
           boxShadow: [
             BoxShadow(
@@ -1271,23 +1064,49 @@ class OrdersTabState extends State<OrdersTab>
         ),
         child: Stack(
           children: [
-            Positioned(
-              top: -30,
-              right: -28,
-              child: Container(
-                width: 110,
-                height: 110,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      visuals.color.withOpacity(0.2),
-                      Colors.transparent,
-                    ],
+            if (_isSelectionMode && allowSelection)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppTheme.primaryColor : Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected
+                          ? AppTheme.primaryColor
+                          : Colors.grey.shade400,
+                      width: 2,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.check,
+                      size: 16,
+                      color: isSelected ? Colors.white : Colors.transparent,
+                    ),
                   ),
                 ),
               ),
-            ),
+            if (!_isSelectionMode)
+              Positioned(
+                top: -30,
+                right: -28,
+                child: Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        visuals.color.withOpacity(0.2),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
               child: Column(
@@ -1349,7 +1168,7 @@ class OrdersTabState extends State<OrdersTab>
                         ),
                       ),
                       Text(
-                        '${total.toStringAsFixed(0)} €',
+                        _formatCurrency(total),
                         style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(
                               color: AppTheme.primaryColor,
@@ -1452,7 +1271,7 @@ class OrdersTabState extends State<OrdersTab>
                                     ),
                                   ),
                                   Text(
-                                    '${itemTotal.toStringAsFixed(0)} €',
+                                    _formatCurrency(itemTotal),
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
@@ -1497,159 +1316,6 @@ class OrdersTabState extends State<OrdersTab>
                       ),
                     ],
                   ),
-                  if (awaitingAdminValidation) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        gradient: LinearGradient(
-                          colors: [
-                            AppTheme.warningColor.withOpacity(0.9),
-                            AppTheme.warningColor.withOpacity(0.6),
-                          ],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.warningColor.withOpacity(0.28),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'En attente de validation admin',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Communiquez ce code à l\'administrateur pour finaliser la commande.',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: Colors.white.withOpacity(0.9),
-                                  ),
-                            ),
-                            const SizedBox(height: 16),
-                            Center(
-                              child: Shimmer.fromColors(
-                                baseColor: Colors.white,
-                                highlightColor: Colors.white.withOpacity(0.4),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 32,
-                                    vertical: 12,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(20),
-                                    color: Colors.white.withOpacity(0.12),
-                                  ),
-                                  child: Text(
-                                    (order['deliveryCode'] ?? '----')
-                                        .toString(),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineMedium
-                                        ?.copyWith(
-                                          color: Colors.white,
-                                          letterSpacing: 6,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Wrap(
-                              alignment: WrapAlignment.center,
-                              spacing: 12,
-                              runSpacing: 8,
-                              children: [
-                                OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.white,
-                                    side: BorderSide(
-                                      color: Colors.white.withOpacity(0.6),
-                                    ),
-                                  ),
-                                  onPressed: () async {
-                                    final code =
-                                        (order['deliveryCode'] ?? '----')
-                                            .toString();
-                                    await Clipboard.setData(
-                                      ClipboardData(text: code),
-                                    );
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Code copié'),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(
-                                    Icons.copy_rounded,
-                                    size: 18,
-                                  ),
-                                  label: const Text('Copier le code'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ] else if (canMarkDelivered) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        gradient: LinearGradient(
-                          colors: [
-                            AppTheme.successColor,
-                            AppTheme.successColor.withOpacity(0.8),
-                          ],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.successColor.withOpacity(0.3),
-                            blurRadius: 16,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton.icon(
-                        onPressed: () => _markAsDelivered(order),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                        icon: const Icon(Icons.check_circle_outline, size: 20),
-                        label: const Text(
-                          'Marquer comme livré',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -1659,69 +1325,98 @@ class OrdersTabState extends State<OrdersTab>
     );
   }
 
-  String _generateDeliveryCode() {
-    final random = Random.secure();
-    final code = random.nextInt(9000) + 1000;
-    return code.toString();
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      _selectedOrderIds.clear();
+    });
   }
 
-  Future<void> _markAsDelivered(Map<String, dynamic> order) async {
-    final orderId = (order['orderId'] ?? order['id'] ?? '').toString();
-    if (orderId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Commande introuvable'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
-      return;
-    }
+  void _toggleOrderSelection(String orderId) {
+    setState(() {
+      if (_selectedOrderIds.contains(orderId)) {
+        _selectedOrderIds.remove(orderId);
+      } else {
+        _selectedOrderIds.add(orderId);
+      }
+    });
+  }
 
-    final generatedCode =
-        _pendingDeliveryCodes[orderId] ?? _generateDeliveryCode();
-    _pendingDeliveryCodes[orderId] = generatedCode;
+  void _selectAllOrders(List<Map<String, dynamic>> orders) {
+    setState(() {
+      if (_selectedOrderIds.length == orders.length) {
+        _selectedOrderIds.clear();
+      } else {
+        _selectedOrderIds.clear();
+        for (final order in orders) {
+          final orderId = (order['orderId'] ?? order['id'] ?? '').toString();
+          if (orderId.isNotEmpty) {
+            _selectedOrderIds.add(orderId);
+          }
+        }
+      }
+    });
+  }
 
-    final result = await showModalBottomSheet<bool>(
+  Future<void> _deleteSelectedOrders() async {
+    if (_selectedOrderIds.isEmpty) return;
+
+    final confirm = await showDialog<bool>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (modalContext) {
-        return _DeliveryConfirmationSheet(
-          code: generatedCode,
-          onCopy: () async {
-            await Clipboard.setData(ClipboardData(text: generatedCode));
-            if (!mounted) return;
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Code copié')));
-          },
-          onConfirm: () async {
-            final db = FirebaseDatabase.instanceFor(
-              app: Firebase.app(),
-              databaseURL: DefaultFirebaseOptions.currentPlatform.databaseURL,
-            );
-            await db.ref('orders').child(orderId).update({
-              'status': 'awaiting_confirmation',
-              'deliveryCode': generatedCode,
-              'clientConfirmedAt': ServerValue.timestamp,
-              'updatedAt': ServerValue.timestamp,
-            });
-            return true;
-          },
-        );
-      },
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmer la suppression'),
+        content: Text(
+          'Voulez-vous vraiment supprimer ${_selectedOrderIds.length} commande(s) ? Cette action est irréversible.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.errorColor),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
     );
 
-    if (result == true && mounted) {
-      _pendingDeliveryCodes.remove(orderId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Code généré ! Partagez-le avec l\'admin pour finaliser la commande.',
+    if (confirm != true) return;
+
+    setState(() => _deleting = true);
+
+    try {
+      final db = FirebaseDatabase.instance;
+      for (final orderId in _selectedOrderIds) {
+        await db.ref('orders').child(orderId).remove();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Commandes supprimées avec succès'),
+            backgroundColor: AppTheme.successColor,
           ),
-          backgroundColor: AppTheme.accentColor,
-        ),
-      );
+        );
+        setState(() {
+          _isSelectionMode = false;
+          _selectedOrderIds.clear();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la suppression: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _deleting = false);
+      }
     }
   }
 
@@ -1831,7 +1526,7 @@ class OrdersTabState extends State<OrdersTab>
                         ),
                       ),
                       Text(
-                        '${itemTotal.toStringAsFixed(2)} €',
+                        _formatCurrency(itemTotal),
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
@@ -1842,61 +1537,25 @@ class OrdersTabState extends State<OrdersTab>
                 );
               }),
               const Divider(),
-              _buildDetailRow(
-                'Sous-total',
-                '${cartTotal.toStringAsFixed(2)} €',
-              ),
+              _buildDetailRow('Sous-total', _formatCurrency(cartTotal)),
               if (deliveryFee > 0)
                 _buildDetailRow(
                   'Frais de livraison',
-                  '${deliveryFee.toStringAsFixed(2)} €',
+                  _formatCurrency(deliveryFee),
                 ),
               if (expressFee > 0)
                 _buildDetailRow(
                   'Livraison express',
-                  '${expressFee.toStringAsFixed(2)} €',
+                  _formatCurrency(expressFee),
                 ),
-              if (tip > 0)
-                _buildDetailRow('Pourboire', '${tip.toStringAsFixed(2)} €'),
+              if (tip > 0) _buildDetailRow('Pourboire', _formatCurrency(tip)),
               const Divider(),
               _buildDetailRow(
                 'Total final',
-                '${total.toStringAsFixed(2)} €',
+                _formatCurrency(total),
                 isTotal: true,
               ),
-              if (order['deliveryCode'] != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Code de validation',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Shimmer.fromColors(
-                  baseColor: AppTheme.primaryColor.withOpacity(0.5),
-                  highlightColor: AppTheme.primaryColor.withOpacity(0.2),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: AppTheme.primaryColor.withOpacity(0.1),
-                    ),
-                    child: Center(
-                      child: Text(
-                        (order['deliveryCode']).toString(),
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 6,
-                            ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+
               const SizedBox(height: 16),
               if (orderId.isNotEmpty) ...[
                 Container(
@@ -2043,7 +1702,7 @@ class OrdersTabState extends State<OrdersTab>
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    final adminPhone = '213555555555';
+                    final adminPhone = '+213778029965';
                     final uri = Uri.parse('tel:$adminPhone');
                     if (await canLaunchUrl(uri)) {
                       await launchUrl(uri);
@@ -2116,33 +1775,21 @@ class OrdersTabState extends State<OrdersTab>
     final pendingCount = _getOrdersByStatus(_tabStatusKeys[0]).length;
     final inProgressCount = _getOrdersByStatus(_tabStatusKeys[1]).length;
     final deliveredCount = _getOrdersByStatus(_tabStatusKeys[2]).length;
+    final isDeliveredTab = _tabController.index == 2;
 
     return Container(
       decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
       child: SafeArea(
         child: Column(
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Mes Commandes',
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      color: AppTheme.primaryColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    onPressed: _fetchOrders,
-                    color: AppTheme.primaryColor,
-                  ),
-                ],
-              ),
+            PillPageHeader(
+              title: 'Mes Commandes',
+              subtitle: 'Suivez vos commandes en un coup d\'œil',
+              onBack: widget.onBackToHome,
+              rightIcon: Icons.refresh,
+              onRightTap: _fetchOrders,
             ),
+            const SizedBox(height: 8),
             // Tabs
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 18),
@@ -2160,6 +1807,8 @@ class OrdersTabState extends State<OrdersTab>
               ),
               child: TabBar(
                 controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.center,
                 indicator: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -2200,53 +1849,125 @@ class OrdersTabState extends State<OrdersTab>
                   ? const Center(child: CircularProgressIndicator())
                   : Column(
                       children: [
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: ElevatedButton.icon(
-                            onPressed: _bulkExporting
-                                ? null
-                                : _exportCurrentTabOrders,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            icon: _bulkExporting
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation(
-                                        Colors.white,
-                                      ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              if (isDeliveredTab) ...[
+                                if (_isSelectionMode) ...[
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      final orders = _getOrdersByStatus(
+                                        _tabStatusKeys[2],
+                                      );
+                                      _selectAllOrders(orders);
+                                    },
+                                    icon: const Icon(Icons.select_all),
+                                    label: Text(
+                                      _selectedOrderIds.length ==
+                                              _getOrdersByStatus(
+                                                _tabStatusKeys[2],
+                                              ).length
+                                          ? 'Tout désélectionner'
+                                          : 'Tout sélectionner',
                                     ),
-                                  )
-                                : const Icon(Icons.picture_as_pdf_outlined),
-                            label: Text(
-                              _bulkExporting
-                                  ? 'Export en cours...'
-                                  : 'Exporter les commandes',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton.icon(
+                                    onPressed:
+                                        _selectedOrderIds.isEmpty || _deleting
+                                        ? null
+                                        : _deleteSelectedOrders,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.errorColor,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    icon: _deleting
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          )
+                                        : const Icon(Icons.delete_outline),
+                                    label: const Text('Supprimer'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    onPressed: _toggleSelectionMode,
+                                    icon: const Icon(Icons.close),
+                                    tooltip: 'Annuler',
+                                  ),
+                                ] else ...[
+                                  TextButton.icon(
+                                    onPressed: _toggleSelectionMode,
+                                    icon: const Icon(Icons.checklist),
+                                    label: const Text('Sélectionner'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                              ],
+                              if (!_isSelectionMode)
+                                ElevatedButton.icon(
+                                  onPressed: _bulkExporting
+                                      ? null
+                                      : _exportCurrentTabOrders,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryColor,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 18,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  icon: _bulkExporting
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation(
+                                              Colors.white,
+                                            ),
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.picture_as_pdf_outlined,
+                                        ),
+                                  label: Text(
+                                    _bulkExporting
+                                        ? 'Export en cours...'
+                                        : 'Exporter',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 12),
                         Expanded(
                           child: TabBarView(
                             controller: _tabController,
-                            children: _tabStatusKeys
-                                .map(_getOrdersByStatus)
-                                .map(_buildOrdersList)
-                                .toList(),
+                            children: _tabStatusKeys.map((status) {
+                              final orders = _getOrdersByStatus(status);
+                              final isDelivered =
+                                  status == 'delivered' || status == 'termines';
+                              return _buildOrdersList(
+                                orders,
+                                allowSelection: isDelivered,
+                              );
+                            }).toList(),
                           ),
                         ),
                       ],
@@ -2261,8 +1982,9 @@ class OrdersTabState extends State<OrdersTab>
   Widget _buildMobileTab(String label, int count) {
     return Row(
       mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(label),
+        Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
         if (count > 0)
           Padding(
             padding: const EdgeInsets.only(left: 4),
