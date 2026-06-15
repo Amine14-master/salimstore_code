@@ -1,0 +1,24 @@
+workflows:
+  ios-workflow:
+    name: iOS Build
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    working_directory: client
+    environment:
+      flutter: default
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Get Flutter packages
+        script: flutter packages pub get
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios
+          pod install
+      - name: Flutter build ipa
+        script: |
+          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - client/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - client/flutter_drive.log
