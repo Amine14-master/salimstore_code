@@ -14,7 +14,8 @@ workflows:
       - name: Flutter build ios (unsigned)
         script: |
           flutter build ios --release --no-codesign
+          cd build/ios/iphoneos
+          zip -r Livriyes_iOS_Unsigned.zip Runner.app
     artifacts:
-      - client/build/ios/iphoneos/*.app
+      - build/ios/iphoneos/*.zip
       - /tmp/xcodebuild_logs/*.log
-      - client/flutter_drive.log
