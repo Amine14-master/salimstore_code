@@ -10,7 +10,9 @@
         "firebase-debug.*.log",
         "*.local"
       ]
-      
     }
-  ]
+  ],
+  "database": {
+    "rules": "firebase_database_rules.json"
+  }
 }

@@ -57,6 +57,14 @@
 		<string>Cette application a besoin d'accéder à votre position pour vous permettre de sélectionner votre adresse de livraison sur la carte.</string>
 		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 		<string>Cette application a besoin d'accéder à votre position pour vous permettre de sélectionner votre adresse de livraison sur la carte.</string>
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>tel</string>
+			<string>sms</string>
+			<string>http</string>
+			<string>https</string>
+			<string>mailto</string>
+		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>

@@ -7,9 +7,15 @@
                 "isActive"
             ]
         },
-        "products": {
+        "subCategories": {
             ".indexOn": [
                 "categoryId"
+            ]
+        },
+        "products": {
+            ".indexOn": [
+                "categoryId",
+                "subCategoryId"
             ]
         }
     }
